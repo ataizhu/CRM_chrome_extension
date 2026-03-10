@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Статистика — CRM Technologies</title>
+  <link rel="stylesheet" href="stats.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>Статистика</h1>
+      <select id="statsPeriod" class="period-select">
+        <option value="today">Сегодня</option>
+        <option value="week">Неделя</option>
+        <option value="month">Месяц</option>
+        <option value="all" selected>Всё время</option>
+      </select>
+    </header>
+    <main id="statsContent" class="main"></main>
+  </div>
+  <script src="stats.js"></script>
+</body>
+</html>

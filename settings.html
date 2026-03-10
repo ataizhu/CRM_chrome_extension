@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Настройки — CRM Technologies</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>Настройки</h1>
+    </header>
+    <main class="main">
+      <section class="settings-section">
+        <h2>API</h2>
+        <div class="field">
+          <label for="apiUrl">API URL</label>
+          <input type="text" id="apiUrl" placeholder="https://api.example.com/tasks" />
+        </div>
+        <div class="field">
+          <label for="authEndpoint">Endpoint авторизации</label>
+          <input type="text" id="authEndpoint" placeholder="https://api.example.com/auth/login" />
+        </div>
+        <button type="button" id="saveApiBtn" class="btn btn-primary">Сохранить API</button>
+      </section>
+      <section class="settings-section">
+        <h2>Внешний вид</h2>
+        <div class="field row">
+          <label>Тема</label>
+          <div class="theme-toggle">
+            <button type="button" class="theme-option" data-theme="light">Светлая</button>
+            <button type="button" class="theme-option" data-theme="dark">Тёмная</button>
+          </div>
+        </div>
+      </section>
+      <section class="settings-section">
+        <h2>Уведомления</h2>
+        <div class="field row">
+          <label for="notifyEnabled">Уведомления о задачах</label>
+          <input type="checkbox" id="notifyEnabled" />
+        </div>
+      </section>
+      <section class="settings-section" id="syncGroupsSection" style="display: none;">
+        <h2>Группы синхронизации</h2>
+        <div id="syncGroupsList" class="sync-groups-list"></div>
+        <div id="syncGroupsError" class="sync-error" style="display: none;"></div>
+        <div id="syncGroupsLoading" class="sync-loading" style="display: none;">Загрузка…</div>
+      </section>
+      <section class="settings-section">
+        <h2>Аккаунт</h2>
+        <div id="accountInfo" class="account-info"></div>
+        <button type="button" id="logoutBtn" class="btn btn-outline" style="display: none;">Выйти</button>
+      </section>
+    </main>
+  </div>
+  <script src="settings.js"></script>
+</body>
+</html>

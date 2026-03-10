@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM Technologies</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Верхняя панель: плюс | группа | шестерёнка | статистика -->
+    <header class="top-bar">
+      <button type="button" id="plusBtn" class="plus-btn" title="Новая задача">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <div class="group-dropdown-wrap">
+        <div id="groupDropdownTrigger" class="group-trigger">
+          <span id="groupTriggerLabel">CRM</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div id="groupDropdownPanel" class="dropdown-panel" style="display: none;">
+          <div id="groupDropdownHeader" class="group-dropdown-header">
+            <span class="dropdown-label">Выберите опцию</span>
+            <button type="button" id="groupAddBtn" class="group-add-btn" title="Добавить группу">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <div id="groupAddRow" class="group-add-row" style="display: none;">
+            <input type="text" id="groupAddInput" placeholder="Название группы" autocomplete="off" />
+            <button type="button" id="groupAddConfirm" class="btn-dock btn-dock-sm group-add-confirm-icon" title="Добавить">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+          <div id="groupDropdownList" class="dropdown-list"></div>
+        </div>
+      </div>
+      <div class="top-bar-actions">
+        <button type="button" id="taskSortToggleBtn" class="icon-btn icon-btn-sort" title="Сортировка по дате">
+          <svg class="sort-icon-asc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+          <svg class="sort-icon-desc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+        </button>
+        <button type="button" id="settingsBtn" class="icon-btn" title="Настройки">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+        <button type="button" id="statsBtn" class="icon-btn" title="Статистика">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div id="tabTasks" class="tab-pane active">
+        <div id="stickyRecordingBar" class="sticky-recording-bar" style="display: none;" aria-label="Плеер записи звонка">
+          <div class="sticky-recording-head">
+            <div class="sticky-recording-info">
+              <div class="sticky-recording-task-time"></div>
+              <div class="sticky-recording-task-text" title=""></div>
+            </div>
+            <button type="button" class="sticky-recording-close" title="Закрыть" aria-label="Закрыть">×</button>
+          </div>
+          <div class="sticky-recording-tracks"></div>
+        </div>
+        <div id="loading" class="loading" style="display: none;"><div class="spinner"></div><span>Загрузка...</span></div>
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="tasksContainer" class="tasks-container"></div>
+      </div>
+      <div id="tabSettings" class="tab-pane">
+        <section class="settings-section" id="authSection">
+          <h2 class="settings-heading">Авторизация</h2>
+          <div id="authStatus" class="auth-status" style="display: none;">
+            <div class="auth-status-icon">
+              <svg id="authStatusIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
+            <div class="auth-status-text">
+              <div id="authStatusLabel">Авторизован</div>
+              <div id="authStatusUser" class="auth-status-user"></div>
+            </div>
+            <button type="button" id="logoutBtn" class="btn-dock btn-dock-secondary">Выйти</button>
+          </div>
+          <div id="authForm" class="auth-form">
+            <div class="field">
+              <label for="loginUsername">Логин</label>
+              <input type="text" id="loginUsername" placeholder="Логин" autocomplete="username" />
+            </div>
+            <div class="field">
+              <label for="loginPassword" id="loginPasswordLabel">Пароль</label>
+              <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password" />
+            </div>
+            <div id="loginError" class="login-error" style="display: none;"></div>
+            <p class="login-hint" id="loginHint">Введите логин и пароль для доступа к CRM.</p>
+            <button type="button" id="loginSubmitBtn" class="btn-dock btn-dock-primary">Войти</button>
+          </div>
+        </section>
+        <section class="settings-section sync-section" id="syncSection" style="display: none;">
+          <h2 class="settings-heading">Синхронизация CRM</h2>
+          <p class="sync-hint">Выберите, что загружать, период и нажмите «Загрузить задачи».</p>
+          <div class="sync-filters-row">
+            <div class="field sync-filter-col">
+              <span class="sync-filter-label">По типу:</span>
+              <div id="crmSyncActivityTypes" class="sync-checkbox-group">
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-activity-type" value="Call" /> Звонок</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-activity-type" value="Meeting" /> Встреча</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-activity-type" value="Chat" /> Чат</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-activity-type" value="Выполнить" /> Выполнить</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-activity-type" value="Письмо" /> Письмо</label>
+              </div>
+            </div>
+            <div class="field sync-filter-col">
+              <span class="sync-filter-label">По статусу:</span>
+              <div id="crmSyncEventStatuses" class="sync-checkbox-group">
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-event-status" value="Planned" /> Запланировано</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-event-status" value="Held" /> Выполнено</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-event-status" value="Not Held" /> Отменено</label>
+                <label class="sync-checkbox-row"><input type="checkbox" class="crm-sync-event-status" value="В работе" /> В работе</label>
+              </div>
+            </div>
+          </div>
+          <div class="field row">
+            <label for="autoLoadEnabled">Автообновление задач</label>
+            <input type="checkbox" id="autoLoadEnabled" />
+          </div>
+          <div class="field">
+            <label for="autoLoadIntervalMinutes">Интервал автообновления</label>
+            <select id="autoLoadIntervalMinutes" class="period-select">
+              <option value="5">5 минут</option>
+              <option value="15" selected>15 минут</option>
+              <option value="30">30 минут</option>
+              <option value="60">1 час</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="syncPeriod">Период</label>
+            <select id="syncPeriod" class="period-select">
+              <option value="today">Сегодня</option>
+              <option value="week">Неделя</option>
+              <option value="month" selected>Месяц</option>
+              <option value="3months">3 месяца</option>
+              <option value="6months">6 месяцев</option>
+              <option value="year">Год</option>
+            </select>
+          </div>
+          <button type="button" id="syncLoadBtn" class="btn-dock btn-dock-primary">Загрузить задачи</button>
+          <div id="syncStatus" class="sync-status" style="display: none;"></div>
+        </section>
+        <section class="settings-section sync-section" id="crmGroupMembersSyncSection" style="display: none;">
+          <h2 class="settings-heading">Задачи участников CRM группы</h2>
+          <p class="sync-hint">Как админ группы вы можете стягивать задачи участников в группу «CRM». Выберите группу и настройте для каждого участника.</p>
+          <div class="field">
+            <label for="crmSyncSourceGroupSelect">CRM группа (источник участников)</label>
+            <select id="crmSyncSourceGroupSelect" class="period-select">
+              <option value="">— выберите группу —</option>
+            </select>
+          </div>
+          <div id="crmSyncOtherUsersList" class="crm-sync-other-users-list"></div>
+        </section>
+        <section class="settings-section" id="syncGroupsSection" style="display: none;">
+          <h2 class="settings-heading">Группы синхронизации</h2>
+          <div id="syncGroupsToolbar" class="sync-groups-toolbar" style="display: none;">
+            <select id="syncGroupSelector" class="sync-group-selector"></select>
+            <button type="button" id="syncGroupCreateBtn" class="btn-dock btn-dock-primary btn-dock-sm" style="display: none;">Создать группу</button>
+          </div>
+          <div id="syncGroupsList" class="sync-groups-list"></div>
+          <div id="syncGroupsError" class="sync-error" style="display: none;"></div>
+          <div id="syncGroupsLoading" class="sync-loading" style="display: none;">Загрузка…</div>
+        </section>
+        <section class="settings-section">
+          <h2 class="settings-heading">Внешний вид</h2>
+          <div class="field row">
+            <label>Тема</label>
+            <div class="theme-toggle">
+              <button type="button" class="theme-option" data-theme="light">
+                <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                Светлая
+              </button>
+              <button type="button" class="theme-option" data-theme="dark">
+                <svg class="theme-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                Тёмная
+              </button>
+            </div>
+          </div>
+        </section>
+        <section class="settings-section" id="groupsManagementSection">
+          <button type="button" class="groups-management-toggle" id="groupsManagementToggle" aria-expanded="false">
+            <span class="groups-management-toggle-title">Управление группами</span>
+            <svg class="groups-management-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+          <div id="groupsManagementBody" class="groups-management-body" hidden>
+            <div id="groupsManagementList" class="groups-management-list"></div>
+          </div>
+        </section>
+        <section class="settings-section">
+          <h2 class="settings-heading">Управление задачами</h2>
+          <div class="field row">
+            <button type="button" id="clearAllTasksBtn" class="btn-dock btn-dock-danger clear-all-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>Очистить все задачи</span>
+            </button>
+          </div>
+        </section>
+        <section class="settings-section" id="notifySection" style="display: none;">
+          <h2 class="settings-heading">Уведомления о задачах</h2>
+          <div class="field row"><label for="notifyEnabled">Включить уведомления</label><input type="checkbox" id="notifyEnabled" /></div>
+        </section>
+        <div class="settings-footer">
+          <span id="settingsVersion" class="settings-version-link" role="button" tabindex="0"></span><span class="settings-footer-sep"> · </span>Разработчик · <a href="https://t.me/atai4i" target="_blank" rel="noopener noreferrer" class="settings-footer-link">@Atai4i</a>
+        </div>
+      </div>
+      <div id="tabStats" class="tab-pane">
+        <div class="stats-toolbar">
+          <select id="statsPeriod" class="period-select">
+            <option value="today">Сегодня</option>
+            <option value="week">Неделя</option>
+            <option value="month">Месяц</option>
+            <option value="3months">3 месяца</option>
+            <option value="6months">6 месяцев</option>
+            <option value="year">Год</option>
+            <option value="all" selected>Всё время</option>
+          </select>
+        </div>
+        <div id="statsContent" class="stats-content"></div>
+      </div>
+    </main>
+
+    <!-- Модалка: форма создания задачи (iOS sheet) -->
+    <div id="taskFormModal" class="modal-overlay" style="display: none;">
+      <div class="modal task-form-modal">
+        <div class="sheet-handle"></div>
+        <div class="modal-head">
+          <button type="button" id="cancelTaskFormBtn" class="modal-head-cancel">Отмена</button>
+          <h2>Новая задача</h2>
+          <span id="formGroupBadge" class="modal-head-badge">CRM</span>
+          <button type="button" id="closeTaskFormBtn" class="icon-btn" style="display:none">✕</button>
+        </div>
+        <div id="batchTaskBanner" class="batch-task-banner" style="display: none;"></div>
+        <form id="taskForm" class="task-form-fields">
+          <input type="hidden" id="taskId" />
+
+          <!-- Секция: Основное -->
+          <div class="ios-section-header">Основное</div>
+          <div class="ios-section">
+            <div class="ios-row">
+              <label>Тема</label>
+              <input type="text" id="taskTheme" placeholder="Введите тему" required />
+            </div>
+            <div id="formThemeError" class="form-field-error" role="alert"></div>
+            <div class="ios-row ios-row-textarea">
+              <label>Описание</label>
+              <textarea id="taskDesc" rows="3" placeholder="Введите описание"></textarea>
+            </div>
+            <div id="formDescError" class="form-field-error" role="alert"></div>
+          </div>
+
+          <!-- Секция: Параметры -->
+          <div class="ios-section-header">Параметры</div>
+          <div class="ios-section">
+            <div class="ios-row">
+              <label>Группа</label>
+              <div class="form-group-dropdown-wrap" id="formGroupWrap">
+                <div id="formGroupDropdownTrigger" class="form-group-trigger">
+                  <span id="formGroupTriggerLabel">CRM</span>
+                  <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
+                <div id="formGroupDropdownPanel" class="dropdown-panel form-group-panel" style="display: none;">
+                  <div id="formGroupDropdownList" class="dropdown-list"></div>
+                </div>
+              </div>
+            </div>
+            <!-- Группа синхронизации (для заметок) -->
+            <div id="formNoteSyncGroupRow" class="ios-row form-notes-only">
+              <label>Синхронизация</label>
+              <div id="syncGroupDropdown" class="custom-dropdown" data-value="">
+                <div class="custom-dropdown-trigger"><span class="dd-label">Выберите группу</span><svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+              </div>
+            </div>
+            <div id="formSyncGroupError" class="form-field-error form-notes-only" role="alert"></div>
+            <!-- CRM-поля -->
+            <div class="ios-row form-crm-only">
+              <label>Тип действия</label>
+              <div id="actionTypeDropdown" class="custom-dropdown" data-value="">
+                <div class="custom-dropdown-trigger"><span class="dd-label">Выберите опцию</span><svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                <div class="custom-dropdown-panel">
+                  <div class="custom-dropdown-list" data-options="actionType"></div>
+                </div>
+              </div>
+            </div>
+            <div id="formActivityTypeError" class="form-field-error form-crm-only" role="alert"></div>
+            <div class="ios-row form-crm-only">
+              <label>Статус</label>
+              <div id="statusDropdown" class="custom-dropdown" data-value="">
+                <div class="custom-dropdown-trigger"><span class="dd-label">Выберите опцию</span><svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+                <div class="custom-dropdown-panel">
+                  <div class="custom-dropdown-list" data-options="status"></div>
+                </div>
+              </div>
+            </div>
+            <div id="formStatusError" class="form-field-error form-crm-only" role="alert"></div>
+            <div class="ios-row form-crm-only">
+              <label>Приоритетная</label>
+              <label class="ios-toggle">
+                <input type="checkbox" id="taskPriority" />
+                <span class="ios-toggle-track"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- CRM In-progress notice -->
+          <div id="formCrmInProgressNotice" class="form-crm-only form-crm-in-progress-notice" style="display: none;">
+            <p class="form-crm-in-progress-text">Создание задач в CRM в процессе реализации. Кнопка «Создать» временно недоступна.</p>
+          </div>
+
+          <!-- Секция: Дата и время -->
+          <div class="ios-section-header form-row-datetime">Дата и время</div>
+          <div id="batchDateTimeHint" class="ios-section form-row-datetime" style="display: none;">
+            <div class="ios-row">
+              <p style="margin: 0; color: var(--text-secondary); font-size: 13px;">Время будет проставлено автоматически из отрезков</p>
+            </div>
+          </div>
+          <div id="dateTimeSectionContent" class="ios-section form-row-datetime">
+            <div class="ios-row">
+              <label>Период</label>
+              <div id="taskDateTimeRangePicker" class="dt-range-picker">
+                <button type="button" id="taskDateTimeRangeTrigger" class="dt-picker-trigger" aria-haspopup="dialog">
+                  <svg class="dt-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  <span id="taskDateTimeRangeLabel" class="dt-picker-label">Выберите дату и время</span>
+                </button>
+                <input type="hidden" id="taskStart" name="taskStart" />
+                <input type="hidden" id="taskEnd" name="taskEnd" />
+                <div id="taskDateTimeRangePopover" class="dt-range-popover" role="dialog" style="display: none;">
+                  <div class="dt-range-single-calendar">
+                    <div class="dt-cal-header"><button type="button" class="dt-cal-prev">‹</button><span class="dt-cal-title"></span><button type="button" class="dt-cal-next">›</button></div>
+                    <div class="dt-cal-weekdays"></div>
+                    <div class="dt-cal-grid"></div>
+                  </div>
+                  <div class="dt-range-time-rows">
+                    <div class="dt-range-time-row" data-range="start">
+                      <span class="dt-range-time-label">Начало</span>
+                      <div class="dt-picker-time">
+                        <input type="hidden" class="dt-time-input" value="00:00" />
+                        <div class="dt-wheel-wrap">
+                          <div class="dt-wheel dt-wheel-hour" data-type="hour"></div>
+                          <span class="dt-wheel-sep">:</span>
+                          <div class="dt-wheel dt-wheel-minute" data-type="minute"></div>
+                        </div>
+                        <button type="button" class="dt-now-btn">Сейчас</button>
+                      </div>
+                    </div>
+                    <div class="dt-range-time-row" data-range="end">
+                      <span class="dt-range-time-label">Окончание</span>
+                      <div class="dt-picker-time">
+                        <input type="hidden" class="dt-time-input" value="23:59" />
+                        <div class="dt-wheel-wrap">
+                          <div class="dt-wheel dt-wheel-hour" data-type="hour"></div>
+                          <span class="dt-wheel-sep">:</span>
+                          <div class="dt-wheel dt-wheel-minute" data-type="minute"></div>
+                        </div>
+                        <button type="button" class="dt-now-btn">Сейчас</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="formDateTimeError" class="form-field-error" role="alert"></div>
+          </div>
+
+          <!-- Секция: Назначение (CRM) -->
+          <div class="ios-section-header form-crm-only">Назначение</div>
+          <div class="ios-section form-crm-only">
+            <div class="ios-row">
+              <label>Ответственный</label>
+              <div id="responsibleDropdown" class="custom-dropdown" data-value="">
+                <div class="custom-dropdown-trigger"><span class="dd-label">Выберите опцию</span><svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg></div>
+              </div>
+            </div>
+            <div id="formResponsibleError" class="form-field-error" role="alert"></div>
+            <div class="ios-row">
+              <label>Связано с</label>
+              <div class="form-related-row">
+                <div id="formRelatedModuleDropdown" class="form-related-module-dropdown">
+                  <div id="formRelatedModuleTrigger" class="form-related-module-trigger" role="button" tabindex="0">
+                    <span id="formRelatedModuleLabel">Выберите модуль</span>
+                    <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </div>
+                  <div id="formRelatedModulePanel" class="form-related-module-panel" style="display: none;">
+                    <div id="formRelatedModuleList" class="form-related-module-list"></div>
+                  </div>
+                </div>
+                <input type="hidden" id="formRelatedModule" value="" />
+                <div id="formRelatedSearchWrap" class="form-related-search-wrap" style="display: none;">
+                  <input type="text" id="formRelatedSearch" class="form-related-search" placeholder="Введите наименование для поиска..." autocomplete="off" />
+                  <div id="formRelatedResults" class="form-related-results" style="display: none;"></div>
+                </div>
+              </div>
+              <input type="hidden" id="formRelatedCrmid" />
+            </div>
+            <div id="formRelatedSelected" class="form-related-selected" style="display: none;">
+              <span class="form-related-selected-label"></span>
+              <button type="button" id="formRelatedClear" class="form-related-clear" title="Сбросить">×</button>
+            </div>
+          </div>
+
+          <!-- Секция: Результат (CRM, при статусе Выполнено) -->
+          <div id="formTaskResultWrap" class="form-crm-only" style="display: none;">
+            <div class="ios-section-header">Результат</div>
+            <div class="ios-section">
+              <div class="ios-row ios-row-textarea">
+                <label for="formTaskResult">Результат выполненных работ</label>
+                <textarea id="formTaskResult" rows="3" placeholder="Опишите выполненные работы"></textarea>
+              </div>
+              <div id="formTaskResultError" class="form-field-error" role="alert"></div>
+            </div>
+          </div>
+
+          <!-- Кнопка создания -->
+          <div class="form-actions">
+            <button type="submit" id="submitTaskBtn" class="btn-dock btn-dock-primary">Создать</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Модалка логина -->
+    <div id="loginModal" class="modal-overlay" style="display: none;">
+      <div class="modal login-modal">
+        <h2 class="modal-title">Вход</h2>
+        <form id="loginForm" class="login-form">
+          <div class="form-group">
+            <label for="loginUsername">Логин</label>
+            <input type="text" id="loginUsername" placeholder="Логин" autocomplete="username" required />
+          </div>
+          <div class="form-group">
+            <label for="loginPassword" id="loginPasswordLabel">Пароль</label>
+            <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password" required />
+          </div>
+          <div id="loginError" class="login-error" style="display: none;"></div>
+          <button type="submit" id="loginSubmitBtn" class="btn-dock btn-dock-primary full-width">Войти</button>
+        </form>
+        <p class="login-hint" id="loginHint">Настройте API и endpoint авторизации в настройках.</p>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
