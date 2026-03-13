@@ -1,10 +1,10 @@
 // ui.js - UI компоненты и события
 
-import { theme, syncPeriod, groups, selectedGroup, _lastRenderedTasks, setSyncPeriod, setTimeRefreshInterval, setFormGroupSelection, user, authMode, setTheme, applyTheme, taskSortOrder, setTaskSortOrder, setCrmSyncActivityTypes, setCrmSyncEventStatuses, crmSyncSourceGroupId, crmSyncOtherUsers, setCrmSyncSourceGroupId, setCrmSyncOtherUsers, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES, CRM_GROUP_NAME } from './config.js';
-import { _formEl, showError, hideError, showLoading, hideLoading, tasksContainer, escapeHtml, error as errorEl, openPickerModal } from './utils.js';
+import { theme, syncPeriod, groups, selectedGroup, _lastRenderedTasks, setSyncPeriod, setTimeRefreshInterval, setFormGroupSelection, user, authMode, setTheme, applyTheme, taskSortOrder, setTaskSortOrder, setCrmSyncActivityTypes, setCrmSyncEventStatuses, crmSyncSourceGroupId, crmSyncOtherUsers, setCrmSyncSourceGroupId, setCrmSyncOtherUsers, periodExactStart, setPeriodExactStart, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES, CRM_GROUP_NAME } from './config.js';
+import { _formEl, showError, hideError, showLoading, hideLoading, tasksContainer, escapeHtml, error as errorEl, openPickerModal, openPeriodPickerModal } from './utils.js';
 import { isAuthed, clearAuth, login, showLoginError } from './auth.js';
 import { loadGroups, saveGroups, renderGroupDropdownList, updateGroupTriggerLabel, renderFormGroupDropdownList, updateFormGroupTriggerLabel, setFormGroupSelection as setFormGroup, updateFormMode, setupGroupDropdown, setupFormGroupDropdown, isCrmForm, isNotesForm, deleteGroup, renameGroup, restoreGroup, renderGroupsManagementList, reorderGroups } from './groups.js';
-import { loadTasks, loadMergedTasks, createTask, updateTask, deleteTask, toggleTaskComplete, completeCrmTaskWithDescription, setTaskStatus, invalidateSyncNotesCache, startSyncNotesPolling, stopSyncNotesPolling } from './tasks.js';
+import { loadTasks, loadMergedTasks, createTask, updateTask, deleteTask, toggleTaskComplete, completeCrmTaskWithDescription, setTaskStatus, invalidateSyncNotesCache, startSyncNotesPolling, stopSyncNotesPolling, periodToDateFrom } from './tasks.js';
 import { loadPersonalTasks, savePersonalTasks, loadDeletedCrmTasks, saveDeletedCrmTasks, markCrmTaskAsDeleted, removeCrmTaskFromCache, updateNoteTimer, saveSelectedSyncGroupId } from './storage.js';
 import { renderTasks, refreshTaskTimeBadges, refreshNoteTimerDisplays, toggleGroup, formatDuration, formatTimerSegmentsForTaskResult } from './render.js';
 import { openTaskFormModal, closeTaskFormModal, showGroupSelectionModal, showSegmentChoiceModal, showSegmentEditorModal } from './modals.js';
@@ -68,9 +68,8 @@ export async function updateSettingsUI(dependencies = {}) {
   const authStatusLabel = document.getElementById('authStatusLabel');
   const authStatusUser = document.getElementById('authStatusUser');
   const logoutBtn = _formEl('logoutBtn');
-  const syncPeriodEl = _formEl('syncPeriod');
+  const syncPeriodDropdown = document.getElementById('syncPeriodDropdown');
   const syncSection = document.getElementById('syncSection');
-  const notifySection = document.getElementById('notifySection');
 
   const { notifyEnabled } = await chrome.storage.sync.get(['notifyEnabled']);
   if (notifyEl) notifyEl.checked = !!notifyEnabled;
@@ -82,7 +81,6 @@ export async function updateSettingsUI(dependencies = {}) {
   if (authForm) authForm.style.display = authed ? 'none' : 'block';
   if (authStatus) authStatus.style.display = authed ? 'flex' : 'none';
   if (syncSection) syncSection.style.display = authed ? 'block' : 'none';
-  if (notifySection) notifySection.style.display = authed ? 'block' : 'none';
 
   const syncGroupsSection = document.getElementById('syncGroupsSection');
   const syncGroupsList = document.getElementById('syncGroupsList');
@@ -698,7 +696,12 @@ export async function updateSettingsUI(dependencies = {}) {
   }
 
   if (logoutBtn) logoutBtn.style.display = authed ? 'block' : 'none';
-  if (syncPeriodEl) syncPeriodEl.value = syncPeriod || 'month';
+  const periodLabels = { today: 'Сегодня', week: 'Неделя', month: 'Месяц', '3months': '3 месяца', '6months': '6 месяцев', year: 'Год' };
+  if (syncPeriodDropdown) {
+    syncPeriodDropdown.dataset.value = syncPeriod || 'month';
+    const label = syncPeriodDropdown.querySelector('.dd-label');
+    if (label) label.textContent = periodLabels[syncPeriod] || 'Месяц';
+  }
 
   const autoLoadEl = _formEl('autoLoadEnabled');
   const autoLoadIntervalEl = document.getElementById('autoLoadIntervalMinutes');
@@ -841,16 +844,28 @@ export function setupSettingsTab(dependencies = {}) {
     });
   }
 
-  const syncPeriodEl = _formEl('syncPeriod');
+  const syncPeriodDropdown2 = document.getElementById('syncPeriodDropdown');
   const syncLoadBtn = _formEl('syncLoadBtn');
   const autoLoadEl = _formEl('autoLoadEnabled');
   const autoLoadIntervalEl = document.getElementById('autoLoadIntervalMinutes');
-  if (syncPeriodEl) {
-    syncPeriodEl.addEventListener('change', async () => {
-      const val = syncPeriodEl.value || 'month';
-      setSyncPeriod(val);
-      await chrome.storage.sync.set({ syncPeriod: val });
-    });
+  if (syncPeriodDropdown2) {
+    const trigger = syncPeriodDropdown2.querySelector('.custom-dropdown-trigger');
+    if (trigger) {
+      trigger.addEventListener('click', async () => {
+        const result = await openPeriodPickerModal({
+          selectedValue: syncPeriodDropdown2.dataset.value || syncPeriod || 'month',
+          exactStart: periodExactStart,
+        });
+        if (result) {
+          syncPeriodDropdown2.dataset.value = result.value;
+          const label = syncPeriodDropdown2.querySelector('.dd-label');
+          if (label) label.textContent = result.label;
+          setSyncPeriod(result.value);
+          setPeriodExactStart(result.exactStart);
+          await chrome.storage.sync.set({ syncPeriod: result.value, periodExactStart: result.exactStart });
+        }
+      });
+    }
   }
   const saveCrmSyncFilters = async () => {
     const types = [...document.querySelectorAll('.crm-sync-activity-type:checked')].map((cb) => cb.value);
@@ -897,7 +912,7 @@ export function setupSettingsTab(dependencies = {}) {
         showSyncStatus('Сначала войдите в систему.', 'error');
         return;
       }
-      const period = (syncPeriodEl && syncPeriodEl.value) || syncPeriod || 'month';
+      const period = (syncPeriodDropdown2 && syncPeriodDropdown2.dataset.value) || syncPeriod || 'month';
       setSyncPeriod(period);
       const types = [...document.querySelectorAll('.crm-sync-activity-type:checked')].map((cb) => cb.value);
       const statuses = [...document.querySelectorAll('.crm-sync-event-status:checked')].map((cb) => cb.value);
@@ -905,24 +920,33 @@ export function setupSettingsTab(dependencies = {}) {
       setCrmSyncActivityTypes(types);
       setCrmSyncEventStatuses(statuses);
 
-      // Автоматически добавляем CRM в видимые группы (если пользователь не удалял её)
+      // Автоматически добавляем CRM и CRM группу в видимые группы (если пользователь не удалял их)
       const { visibleGroups: currentVisibleGroups, setVisibleGroups } = await import('./config.js');
       const { loadUserHiddenGroups } = await import('./storage.js');
       const hidden = await loadUserHiddenGroups();
-      if (!hidden.includes('CRM') && !currentVisibleGroups.includes('CRM')) {
-        const newVisibleGroups = [...currentVisibleGroups, 'CRM'];
-        setVisibleGroups(newVisibleGroups);
-        await chrome.storage.sync.set({ visibleGroups: newVisibleGroups });
+      let updated = [...currentVisibleGroups];
+      let changed = false;
+      if (!hidden.includes('CRM') && !updated.includes('CRM')) {
+        updated.push('CRM');
+        changed = true;
+      }
+      if (!hidden.includes(CRM_GROUP_NAME) && !updated.includes(CRM_GROUP_NAME) && groups.includes(CRM_GROUP_NAME)) {
+        updated.push(CRM_GROUP_NAME);
+        changed = true;
+      }
+      if (changed) {
+        setVisibleGroups(updated);
+        await chrome.storage.sync.set({ visibleGroups: updated });
         if (dependencies.renderGroupDropdownList) dependencies.renderGroupDropdownList(dependencies);
       }
 
       await (dependencies.saveDeletedCrmTasks || saveDeletedCrmTasks)([]);
+      const dateFrom = periodToDateFrom(period);
       const result = await (dependencies.loadTasks || loadTasks)(dependencies);
-      if (result?.crmCount > 0 && result?.crmStorageFormatted) {
-        showSyncStatus(`Задачи загружены. CRM: ${result.crmCount} задач, ~${result.crmStorageFormatted} для кэша.`, 'success');
-      } else {
-        showSyncStatus('Задачи загружены.', 'success');
-      }
+      const dateInfo = dateFrom ? ` с ${dateFrom}` : '';
+      const countInfo = result?.crmCount > 0 ? ` CRM: ${result.crmCount} задач` : '';
+      const sizeInfo = result?.crmStorageFormatted ? `, ~${result.crmStorageFormatted}` : '';
+      showSyncStatus(`Задачи загружены${dateInfo}.${countInfo}${sizeInfo}`, 'success');
     });
   }
 

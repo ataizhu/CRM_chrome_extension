@@ -187,6 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await Storage.loadConfig();
   Config.applyTheme(Config.theme);
   await Auth.checkAuth();
+  await Render.loadCollapsedGroups();
   await Groups.loadGroups(deps);
   UI.setupEventListeners(deps);
   applyAutoLoad(deps);

@@ -1,7 +1,36 @@
 // api.js - API запросы
 
-import { authEndpoint, authToken, vtigerCredentials, setAuthToken, setUser, setVtigerCredentials } from './config.js';
+import { authEndpoint, authToken, vtigerCredentials, setAuthToken, setUser, setVtigerCredentials, periodExactStart } from './config.js';
 import { clearAuth } from './auth.js';
+
+const _MS_DAY = 24 * 60 * 60 * 1000;
+function _calcDateFrom(period) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const exact = periodExactStart || {};
+  if (period === 'today') return today.toISOString().slice(0, 10);
+  if (period === 'week') {
+    if (exact.week) { const d = today.getDay(); return new Date(today.getTime() - (d === 0 ? 6 : d - 1) * _MS_DAY).toISOString().slice(0, 10); }
+    return new Date(today.getTime() - 7 * _MS_DAY).toISOString().slice(0, 10);
+  }
+  if (period === 'month') {
+    if (exact.month) return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    return new Date(today.getTime() - 30 * _MS_DAY).toISOString().slice(0, 10);
+  }
+  if (period === '3months') {
+    if (exact['3months']) return new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0, 10);
+    return new Date(today.getTime() - 90 * _MS_DAY).toISOString().slice(0, 10);
+  }
+  if (period === '6months') {
+    if (exact['6months']) return new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().slice(0, 10);
+    return new Date(today.getTime() - 180 * _MS_DAY).toISOString().slice(0, 10);
+  }
+  if (period === 'year') {
+    if (exact.year) return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+    return new Date(today.getTime() - 365 * _MS_DAY).toISOString().slice(0, 10);
+  }
+  return null;
+}
 
 export async function apiFetch(url, init = {}, dependencies = {}) {
   const { updateSettingsUI } = dependencies;
@@ -51,14 +80,21 @@ export async function apiFetch(url, init = {}, dependencies = {}) {
   return res;
 }
 
-export async function fetchTasksFromAPI(period = 'all', dependencies = {}) {
+export async function fetchTasksFromAPI(period = 'month', dependencies = {}) {
   const { apiFetch: apiFetchFn, crmSyncActivityTypes = [], crmSyncEventStatuses = [], assigned_user_id: assignedUserId } = dependencies;
   if (!authEndpoint) throw new Error('Endpoint не настроен');
 
   let url = `${authEndpoint}?action=tasks&debug=1`;
-  if (period && period !== 'all') {
+  if (period) {
     url += `&period=${encodeURIComponent(period)}`;
   }
+  // Вычисляем date_from для точной фильтрации на сервере
+  const dateFrom = _calcDateFrom(period);
+  if (dateFrom) {
+    url += `&date_from=${encodeURIComponent(dateFrom)}`;
+  }
+  // Сворачиваем повторяющиеся будущие задачи — только ближайшая
+  url += '&collapse_recurring=1';
   if (assignedUserId != null && assignedUserId !== '') {
     url += '&assigned_user_id=' + encodeURIComponent(String(assignedUserId));
   }

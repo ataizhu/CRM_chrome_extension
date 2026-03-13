@@ -130,17 +130,20 @@ export async function login(username, password, dependencies = {}) {
       if (renderGroupDropdownList) renderGroupDropdownList(dependencies);
       if (renderFormGroupDropdownList) renderFormGroupDropdownList();
       
-      // Автоматически добавляем CRM в видимые группы после авторизации (если пользователь не удалял её)
-      const { visibleGroups: currentVisibleGroups, setVisibleGroups } = await import('./config.js');
+      // Автоматически добавляем CRM и CRM группу в видимые группы после авторизации
+      const { visibleGroups: currentVisibleGroups, setVisibleGroups, groups: currentGroups, CRM_GROUP_NAME: CGN } = await import('./config.js');
       const { loadUserHiddenGroups } = await import('./storage.js');
       const hidden = await loadUserHiddenGroups();
-      if (!hidden.includes('CRM') && !currentVisibleGroups.includes('CRM')) {
-        const newVisibleGroups = [...currentVisibleGroups, 'CRM'];
-        setVisibleGroups(newVisibleGroups);
-        await chrome.storage.sync.set({ visibleGroups: newVisibleGroups });
+      let updatedVG = [...currentVisibleGroups];
+      let vgChanged = false;
+      if (!hidden.includes('CRM') && !updatedVG.includes('CRM')) { updatedVG.push('CRM'); vgChanged = true; }
+      if (!hidden.includes(CGN) && !updatedVG.includes(CGN) && currentGroups.includes(CGN)) { updatedVG.push(CGN); vgChanged = true; }
+      if (vgChanged) {
+        setVisibleGroups(updatedVG);
+        await chrome.storage.sync.set({ visibleGroups: updatedVG });
         if (renderGroupDropdownList) renderGroupDropdownList(dependencies);
       }
-      
+
       if (dependencies.applyAutoLoad) await dependencies.applyAutoLoad(dependencies);
       if (updateGroupTriggerLabel) updateGroupTriggerLabel();
       if (updateFormGroupTriggerLabel) updateFormGroupTriggerLabel();
@@ -195,17 +198,20 @@ export async function login(username, password, dependencies = {}) {
       if (renderGroupDropdownList) renderGroupDropdownList(dependencies);
       if (renderFormGroupDropdownList) renderFormGroupDropdownList();
       
-      // Автоматически добавляем CRM в видимые группы после авторизации (если пользователь не удалял её)
-      const { visibleGroups: currentVisibleGroups, setVisibleGroups } = await import('./config.js');
-      const { loadUserHiddenGroups } = await import('./storage.js');
-      const hidden = await loadUserHiddenGroups();
-      if (!hidden.includes('CRM') && !currentVisibleGroups.includes('CRM')) {
-        const newVisibleGroups = [...currentVisibleGroups, 'CRM'];
-        setVisibleGroups(newVisibleGroups);
-        await chrome.storage.sync.set({ visibleGroups: newVisibleGroups });
+      // Автоматически добавляем CRM и CRM группу в видимые группы после авторизации
+      const { visibleGroups: currentVisibleGroups2, setVisibleGroups: setVG2, groups: currentGroups2, CRM_GROUP_NAME: CGN2 } = await import('./config.js');
+      const { loadUserHiddenGroups: loadHidden2 } = await import('./storage.js');
+      const hidden2 = await loadHidden2();
+      let updatedVG2 = [...currentVisibleGroups2];
+      let vgChanged2 = false;
+      if (!hidden2.includes('CRM') && !updatedVG2.includes('CRM')) { updatedVG2.push('CRM'); vgChanged2 = true; }
+      if (!hidden2.includes(CGN2) && !updatedVG2.includes(CGN2) && currentGroups2.includes(CGN2)) { updatedVG2.push(CGN2); vgChanged2 = true; }
+      if (vgChanged2) {
+        setVG2(updatedVG2);
+        await chrome.storage.sync.set({ visibleGroups: updatedVG2 });
         if (renderGroupDropdownList) renderGroupDropdownList(dependencies);
       }
-      
+
       if (dependencies.applyAutoLoad) await dependencies.applyAutoLoad(dependencies);
       if (updateGroupTriggerLabel) updateGroupTriggerLabel();
       if (updateFormGroupTriggerLabel) updateFormGroupTriggerLabel();
@@ -239,16 +245,19 @@ export async function login(username, password, dependencies = {}) {
     if (updateSettingsUI) await updateSettingsUI();
     if (loadGroups) await loadGroups(dependencies);
     
-    // Автоматически добавляем CRM в видимые группы после авторизации (если пользователь не удалял её)
-    const { visibleGroups: currentVisibleGroups, setVisibleGroups } = await import('./config.js');
-    const { loadUserHiddenGroups } = await import('./storage.js');
-    const hidden = await loadUserHiddenGroups();
-    if (!hidden.includes('CRM') && !currentVisibleGroups.includes('CRM')) {
-      const newVisibleGroups = [...currentVisibleGroups, 'CRM'];
-      setVisibleGroups(newVisibleGroups);
-      await chrome.storage.sync.set({ visibleGroups: newVisibleGroups });
+    // Автоматически добавляем CRM и CRM группу в видимые группы после авторизации
+    const { visibleGroups: currentVisibleGroups3, setVisibleGroups: setVG3, groups: currentGroups3, CRM_GROUP_NAME: CGN3 } = await import('./config.js');
+    const { loadUserHiddenGroups: loadHidden3 } = await import('./storage.js');
+    const hidden3 = await loadHidden3();
+    let updatedVG3 = [...currentVisibleGroups3];
+    let vgChanged3 = false;
+    if (!hidden3.includes('CRM') && !updatedVG3.includes('CRM')) { updatedVG3.push('CRM'); vgChanged3 = true; }
+    if (!hidden3.includes(CGN3) && !updatedVG3.includes(CGN3) && currentGroups3.includes(CGN3)) { updatedVG3.push(CGN3); vgChanged3 = true; }
+    if (vgChanged3) {
+      setVG3(updatedVG3);
+      await chrome.storage.sync.set({ visibleGroups: updatedVG3 });
     }
-    
+
     if (dependencies.applyAutoLoad) await dependencies.applyAutoLoad(dependencies);
     if (updateGroupTriggerLabel) updateGroupTriggerLabel();
     if (checkPendingTask) await checkPendingTask();

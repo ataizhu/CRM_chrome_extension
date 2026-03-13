@@ -30,6 +30,10 @@ export let taskSortOrder = 'date_desc';
 export let excludeCompleted = false;
 export let excludeCancelled = false;
 
+/** Точное начало периода: { week: true, month: false, ... }
+ *  week=true → с понедельника, month=true → с 1-го числа, 3months → с 1-го числа 3 мес назад, year → с 1 января */
+export let periodExactStart = {};
+
 /** Выбранная группа синхронизации для Заметок (uuid из Supabase). Если задана — заметки грузятся/сохраняются в группе. */
 export let selectedSyncGroupId = '';
 
@@ -82,6 +86,7 @@ export function setAutoLoadIntervalId(value) { _autoLoadIntervalId = value; }
 export function setTaskSortOrder(value) { taskSortOrder = value === 'date_desc' ? 'date_desc' : 'date_asc'; }
 export function setExcludeCompleted(value) { excludeCompleted = !!value; }
 export function setExcludeCancelled(value) { excludeCancelled = !!value; }
+export function setPeriodExactStart(value) { periodExactStart = value && typeof value === 'object' ? value : {}; }
 export function setCrmSyncActivityTypes(value) { crmSyncActivityTypes = Array.isArray(value) ? value : []; }
 export function setCrmSyncEventStatuses(value) { crmSyncEventStatuses = Array.isArray(value) ? value : []; }
 export function setSelectedSyncGroupId(value) { selectedSyncGroupId = value || ''; }

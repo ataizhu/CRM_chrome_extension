@@ -196,7 +196,8 @@ export function renderTasks(tasks) {
   }
 
   setLastRenderedTasks(filteredTasks);
-  const collapsedGroupIds = new Set();
+  // Собираем свёрнутые группы: из DOM (текущая сессия) + из persisted state
+  const collapsedGroupIds = new Set(_collapsedGroups);
   tasksContainer.querySelectorAll('.task-group').forEach((tg) => {
     const gid = tg.dataset.groupId;
     const tasksEl = gid ? document.getElementById(gid) : null;
@@ -300,8 +301,8 @@ export function renderTaskGroup(groupName, tasks, index = 0) {
   const displayName = groupName;
   const chartClass = getGroupChartClass(groupName, index);
   const isCrmGroup = groupName === CRM_GROUP_NAME;
-  const selectedUserSet = isCrmGroup ? (_groupUserFilterState.get(groupId) || new Set()) : null;
   const uniqueUserKeys = isCrmGroup ? [...new Set(tasks.map(t => String(t.user_id ?? '')).filter(Boolean))] : [];
+  const selectedUserSet = isCrmGroup ? (_groupUserFilterState.get(groupId) || new Set()) : null;
   // Только ключи, которые реально есть в задачах (устаревший выбор после отключения пользователя в настройках — сбрасываем)
   const effectiveUserSet = isCrmGroup && selectedUserSet
     ? new Set([...selectedUserSet].filter((k) => uniqueUserKeys.includes(k)))
@@ -642,12 +643,38 @@ export function renderTaskItem(task) {
   `;
 }
 
+const COLLAPSED_GROUPS_KEY = 'collapsedGroups';
+
+let _collapsedGroups = new Set();
+
+export async function loadCollapsedGroups() {
+  try {
+    const r = await chrome.storage.local.get([COLLAPSED_GROUPS_KEY]);
+    _collapsedGroups = new Set(Array.isArray(r[COLLAPSED_GROUPS_KEY]) ? r[COLLAPSED_GROUPS_KEY] : []);
+  } catch { _collapsedGroups = new Set(); }
+  return _collapsedGroups;
+}
+
+function _saveCollapsedGroups() {
+  chrome.storage.local.set({ [COLLAPSED_GROUPS_KEY]: [..._collapsedGroups] });
+}
+
+export function getCollapsedGroups() {
+  return _collapsedGroups;
+}
+
 export function toggleGroup(groupId) {
   const groupTasks = document.getElementById(groupId);
   const toggle = document.querySelector(`[data-group-id="${groupId}"] .group-toggle`);
 
   if (groupTasks) {
-    groupTasks.classList.toggle('collapsed');
-    toggle.classList.toggle('collapsed');
+    const isCollapsed = groupTasks.classList.toggle('collapsed');
+    if (toggle) toggle.classList.toggle('collapsed', isCollapsed);
+    if (isCollapsed) {
+      _collapsedGroups.add(groupId);
+    } else {
+      _collapsedGroups.delete(groupId);
+    }
+    _saveCollapsedGroups();
   }
 }

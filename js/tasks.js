@@ -1,6 +1,6 @@
 // tasks.js - Управление задачами
 
-import { authEndpoint, syncPeriod, setLastRenderedTasks, excludeCompleted, excludeCancelled, crmSyncActivityTypes, crmSyncEventStatuses, crmSyncOtherUsers, selectedSyncGroupId, CRM_GROUP_NAME, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES } from './config.js';
+import { authEndpoint, syncPeriod, setLastRenderedTasks, excludeCompleted, excludeCancelled, crmSyncActivityTypes, crmSyncEventStatuses, crmSyncOtherUsers, selectedSyncGroupId, periodExactStart, CRM_GROUP_NAME, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES } from './config.js';
 import { isAuthed } from './auth.js';
 import { apiFetch, fetchTasksFromAPI, fetchSyncNotes } from './api.js';
 import { loadPersonalTasks, savePersonalTasks, savePersonalTask, updatePersonalTask, loadDeletedCrmTasks, saveDeletedCrmTasks, markCrmTaskAsDeleted, estimateStorageSize, loadCrmTasksCache, saveCrmTasksCache, updateCrmTaskInCache, removeCrmTaskFromCache } from './storage.js';
@@ -9,21 +9,73 @@ import { showError, hideError, showLoading, hideLoading } from './utils.js';
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
-export function getTasksByPeriod(tasks, period) {
+/**
+ * Рассчитать дату начала периода (ISO строка YYYY-MM-DD).
+ * Если для периода включена галочка "точное начало" (periodExactStart),
+ * то week → с понедельника, month → с 1-го числа, year → с 1 января и т.д.
+ */
+export function periodToDateFrom(period) {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const exact = periodExactStart || {};
+
+  if (period === 'today') return today.toISOString().slice(0, 10);
+
+  if (period === 'week') {
+    if (exact.week) {
+      // С понедельника текущей недели (0=вс,1=пн,...6=сб)
+      const day = today.getDay();
+      const diff = day === 0 ? 6 : day - 1; // дней назад до понедельника
+      return new Date(today.getTime() - diff * MS_DAY).toISOString().slice(0, 10);
+    }
+    return new Date(today.getTime() - 7 * MS_DAY).toISOString().slice(0, 10);
+  }
+
+  if (period === 'month') {
+    if (exact.month) {
+      return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+    }
+    return new Date(today.getTime() - 30 * MS_DAY).toISOString().slice(0, 10);
+  }
+
+  if (period === '3months') {
+    if (exact['3months']) {
+      return new Date(now.getFullYear(), now.getMonth() - 2, 1).toISOString().slice(0, 10);
+    }
+    return new Date(today.getTime() - 90 * MS_DAY).toISOString().slice(0, 10);
+  }
+
+  if (period === '6months') {
+    if (exact['6months']) {
+      return new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString().slice(0, 10);
+    }
+    return new Date(today.getTime() - 180 * MS_DAY).toISOString().slice(0, 10);
+  }
+
+  if (period === 'year') {
+    if (exact.year) {
+      return new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+    }
+    return new Date(today.getTime() - 365 * MS_DAY).toISOString().slice(0, 10);
+  }
+
+  return null;
+}
+
+export function getTasksByPeriod(tasks, period) {
+  const dateFrom = periodToDateFrom(period);
+  if (!dateFrom) return tasks;
+  const fromTs = new Date(dateFrom).getTime();
 
   return tasks.filter((t) => {
+    // Используем дату задачи: end → start → createdAt
+    const end = t.end ? new Date(t.end).getTime() : 0;
+    const start = t.start ? new Date(t.start).getTime() : 0;
     const created = t.createdAt ? new Date(t.createdAt).getTime() : 0;
-    if (!created && period !== 'all') return false;
-    if (period === 'all') return true;
-    if (period === 'today') return created >= today;
-    if (period === 'week') return created >= today - 7 * MS_DAY;
-    if (period === 'month') return created >= today - 30 * MS_DAY;
-    if (period === '3months') return created >= today - 90 * MS_DAY;
-    if (period === '6months') return created >= today - 180 * MS_DAY;
-    if (period === 'year') return created >= today - 365 * MS_DAY;
-    return true;
+    const taskDate = end || start || created;
+    if (!taskDate) return false;
+    // От начала периода и все будущие (без верхней границы)
+    return taskDate >= fromTs;
   });
 }
 

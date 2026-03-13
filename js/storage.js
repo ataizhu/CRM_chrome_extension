@@ -1,17 +1,17 @@
 // storage.js - Работа с chrome.storage
 
-import { STORAGE_KEY_PERSONAL, STORAGE_KEY_DELETED_CRM, STORAGE_KEY_CRM_CACHE, STORAGE_KEY_USER_HIDDEN_GROUPS, DEFAULT_GROUPS, CRM_GROUP_NAME, setGroups, setSelectedGroup, setVisibleGroups, setSyncPeriod, setAuthMode, setTheme, setAutoLoadEnabled, setAutoLoadIntervalMinutes, setTaskSortOrder, setExcludeCompleted, setExcludeCancelled, setCrmSyncActivityTypes, setCrmSyncEventStatuses, setSelectedSyncGroupId, setCrmSyncSourceGroupId, setCrmSyncOtherUsers, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES, isCrmGroup } from './config.js';
+import { STORAGE_KEY_PERSONAL, STORAGE_KEY_DELETED_CRM, STORAGE_KEY_CRM_CACHE, STORAGE_KEY_USER_HIDDEN_GROUPS, DEFAULT_GROUPS, CRM_GROUP_NAME, setGroups, setSelectedGroup, setVisibleGroups, setSyncPeriod, setAuthMode, setTheme, setAutoLoadEnabled, setAutoLoadIntervalMinutes, setTaskSortOrder, setExcludeCompleted, setExcludeCancelled, setCrmSyncActivityTypes, setCrmSyncEventStatuses, setSelectedSyncGroupId, setCrmSyncSourceGroupId, setCrmSyncOtherUsers, setPeriodExactStart, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES, isCrmGroup } from './config.js';
 import { isAuthed } from './auth.js';
 
 // Загрузка конфигурации
 export async function loadConfig() {
-  const result = await chrome.storage.sync.get(['theme', 'notifyEnabled', 'selectedGroup', 'syncPeriod', 'authMode', 'visibleGroups', 'autoLoadEnabled', 'autoLoadIntervalMinutes', 'taskSortOrder', 'crmSyncActivityTypes', 'crmSyncEventStatuses', 'selectedSyncGroupId', 'crmSyncSourceGroupId', 'crmSyncOtherUsers']);
+  const result = await chrome.storage.sync.get(['theme', 'notifyEnabled', 'selectedGroup', 'syncPeriod', 'periodExactStart', 'authMode', 'visibleGroups', 'autoLoadEnabled', 'autoLoadIntervalMinutes', 'taskSortOrder', 'crmSyncActivityTypes', 'crmSyncEventStatuses', 'selectedSyncGroupId', 'crmSyncSourceGroupId', 'crmSyncOtherUsers']);
   if (result.theme === 'dark' || result.theme === 'light') {
     await setTheme(result.theme);
   }
   if (result.selectedGroup !== undefined) setSelectedGroup(result.selectedGroup);
   const validPeriods = ['today', 'week', 'month', '3months', '6months', 'year'];
-  const period = result.syncPeriod === 'all' ? 'month' : result.syncPeriod;
+  const period = result.syncPeriod;
   if (period && validPeriods.includes(period)) setSyncPeriod(period);
   if (['bearer', 'vtiger', 'vtiger_password'].includes(result.authMode)) {
     setAuthMode(result.authMode);
@@ -31,6 +31,7 @@ export async function loadConfig() {
   if (result.selectedSyncGroupId !== undefined) setSelectedSyncGroupId(result.selectedSyncGroupId);
   if (result.crmSyncSourceGroupId !== undefined) setCrmSyncSourceGroupId(result.crmSyncSourceGroupId);
   if (result.crmSyncOtherUsers !== undefined && typeof result.crmSyncOtherUsers === 'object') setCrmSyncOtherUsers(result.crmSyncOtherUsers);
+  if (result.periodExactStart && typeof result.periodExactStart === 'object') setPeriodExactStart(result.periodExactStart);
 }
 
 export async function saveSelectedSyncGroupId(groupId) {

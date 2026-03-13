@@ -121,6 +121,10 @@
             <label for="autoLoadEnabled">Автообновление задач</label>
             <input type="checkbox" id="autoLoadEnabled" />
           </div>
+          <div class="field row">
+            <label for="notifyEnabled">Уведомления о задачах</label>
+            <input type="checkbox" id="notifyEnabled" />
+          </div>
           <div class="field">
             <label for="autoLoadIntervalMinutes">Интервал автообновления</label>
             <select id="autoLoadIntervalMinutes" class="period-select">
@@ -131,15 +135,13 @@
             </select>
           </div>
           <div class="field">
-            <label for="syncPeriod">Период</label>
-            <select id="syncPeriod" class="period-select">
-              <option value="today">Сегодня</option>
-              <option value="week">Неделя</option>
-              <option value="month" selected>Месяц</option>
-              <option value="3months">3 месяца</option>
-              <option value="6months">6 месяцев</option>
-              <option value="year">Год</option>
-            </select>
+            <label>Период</label>
+            <div id="syncPeriodDropdown" class="custom-dropdown" data-value="month">
+              <div class="custom-dropdown-trigger">
+                <span class="dd-label">Месяц</span>
+                <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              </div>
+            </div>
           </div>
           <button type="button" id="syncLoadBtn" class="btn-dock btn-dock-primary">Загрузить задачи</button>
           <div id="syncStatus" class="sync-status" style="display: none;"></div>
@@ -202,26 +204,11 @@
             </button>
           </div>
         </section>
-        <section class="settings-section" id="notifySection" style="display: none;">
-          <h2 class="settings-heading">Уведомления о задачах</h2>
-          <div class="field row"><label for="notifyEnabled">Включить уведомления</label><input type="checkbox" id="notifyEnabled" /></div>
-        </section>
         <div class="settings-footer">
           <span id="settingsVersion" class="settings-version-link" role="button" tabindex="0"></span><span class="settings-footer-sep"> · </span>Разработчик · <a href="https://t.me/atai4i" target="_blank" rel="noopener noreferrer" class="settings-footer-link">@Atai4i</a>
         </div>
       </div>
       <div id="tabStats" class="tab-pane">
-        <div class="stats-toolbar">
-          <select id="statsPeriod" class="period-select">
-            <option value="today">Сегодня</option>
-            <option value="week">Неделя</option>
-            <option value="month">Месяц</option>
-            <option value="3months">3 месяца</option>
-            <option value="6months">6 месяцев</option>
-            <option value="year">Год</option>
-            <option value="all" selected>Всё время</option>
-          </select>
-        </div>
         <div id="statsContent" class="stats-content"></div>
       </div>
     </main>
