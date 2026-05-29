@@ -1,5 +1,5 @@
 #!/bin/bash
-# Создаёт zip-архивы расширения для Chrome/Edge и Firefox.
+# Создаёт zip-архивы расширения для Chrome/Edge/Yandex, Chrome Web Store и Firefox.
 # Версия: 1.0.X — при каждой упаковке увеличивается последнее число в manifest и в имени архива.
 # Changelog: новая запись добавляется из crm/CHANGELOG_PENDING.txt (по одной строке = пункт).
 #            Если файла нет, в changelog попадёт "Исправления и обновления."
@@ -32,8 +32,13 @@ fi
 # --- Общие исключения ---
 EXCLUDES=(
   "crm/.DS_Store"
+  "crm/*/.DS_Store"
   "crm/api-for-chrome-extension/*"
   "crm/.git/*"
+  "crm/.gitignore"
+  "crm/docs/*"
+  "crm/scripts/*"
+  "crm/manifests/*"
   "crm/REFACTORING*"
   "crm/DESIGN_SPEC*"
   "crm/API_SPEC*"
@@ -41,7 +46,11 @@ EXCLUDES=(
   "crm/VTIGER_SPEC*"
   "crm/sidepanel-old.js"
   "crm/CHANGELOG_PENDING.txt"
-  "crm/manifests/*"
+  "crm/CHANGELOG_PENDING.example.txt"
+  "crm/README.md"
+  "crm/УСТАНОВКА.txt"
+  "crm/pack-extension.sh"
+  "crm/manifest.json.bak"
 )
 
 EXCLUDE_ARGS=()
@@ -54,6 +63,18 @@ OUT_CHROME="crm-extension-v${VNEW}-chrome-edge-yandex.zip"
 zip -r "$OUT_CHROME" crm "${EXCLUDE_ARGS[@]}"
 echo "Chrome/Edge/Yandex: $(pwd)/$OUT_CHROME"
 
+# --- Сборка для Chrome Web Store (manifest.json в корне архива) ---
+# CWS требует manifest.json в корне zip, поэтому разворачиваем chrome-архив
+# и переупаковываем содержимое папки crm/ без внешней обёртки.
+OUT_STORE="crm-extension-v${VNEW}-store.zip"
+OUT_STORE_ABS="$(pwd)/$OUT_STORE"
+rm -f "$OUT_STORE_ABS"
+TMP_STORE="$(mktemp -d)"
+unzip -q "$OUT_CHROME" -d "$TMP_STORE"
+( cd "$TMP_STORE/crm" && zip -rqX "$OUT_STORE_ABS" . )
+rm -rf "$TMP_STORE"
+echo "Chrome Web Store:   $(pwd)/$OUT_STORE"
+
 # --- Сборка Firefox ---
 OUT_FIREFOX="crm-extension-v${VNEW}-firefox.zip"
 # Копируем Firefox-манифест поверх основного, собираем, возвращаем обратно
@@ -65,5 +86,6 @@ echo "Firefox:            $(pwd)/$OUT_FIREFOX"
 
 echo ""
 echo "Готово! Версия $VNEW"
-echo "  Chrome/Edge/Yandex → $OUT_CHROME"
+echo "  Chrome/Edge/Yandex → $OUT_CHROME (для «Загрузить распакованное»)"
+echo "  Chrome Web Store    → $OUT_STORE (manifest в корне — для магазина)"
 echo "  Firefox            → $OUT_FIREFOX"

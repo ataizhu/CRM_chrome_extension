@@ -2151,6 +2151,10 @@ export function setupTasksDelegation(dependencies = {}) {
     if (noteTimerBtn) {
       e.stopPropagation();
       const id = noteTimerBtn.dataset.id;
+      // Таймер доступен только тому, кто взял заметку себе
+      const timerTask = _lastRenderedTasks?.find(t => String(t.id) === String(id));
+      const myUid = window._currentVtigerUserId || '';
+      if (!timerTask?.assignedTo || !myUid || String(timerTask.assignedTo) !== String(myUid)) return;
       const badge = noteTimerBtn.closest('.note-timer-badge');
       const wasRunning = badge?.dataset.running === 'true';
       const elapsed = parseInt(badge?.dataset.elapsed || '0', 10);

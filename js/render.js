@@ -402,15 +402,22 @@ export function renderTaskItem(task) {
     }
   }
 
+  const noteMyUserId = isNote ? (window._currentVtigerUserId || '') : '';
+  const noteIsAssignedToMe = isNote && task.assignedTo && noteMyUserId && String(task.assignedTo) === String(noteMyUserId);
+  const noteCanTimer = isNote && noteIsAssignedToMe;
+
   let timeDisplay = '';
   if (isNote) {
     const elapsed = (task.timerElapsedSeconds || 0) + (task.timerRunning && task.timerStartedAt ? Math.floor((Date.now() - new Date(task.timerStartedAt).getTime()) / 1000) : 0);
     const running = !!task.timerRunning;
-    timeDisplay = `<span class="note-timer-badge ${running ? 'note-timer-running' : ''}" data-id="${task.id}" data-elapsed="${task.timerElapsedSeconds || 0}" data-running="${running}" data-started="${task.timerStartedAt || ''}">
-      <button type="button" class="note-timer-btn" data-id="${task.id}" title="${running ? 'Пауза' : 'Старт'}" aria-label="${running ? 'Пауза' : 'Старт'}">
+    const timerBtnHtml = noteCanTimer
+      ? `<button type="button" class="note-timer-btn" data-id="${task.id}" title="${running ? 'Пауза' : 'Старт'}" aria-label="${running ? 'Пауза' : 'Старт'}">
         <span class="note-timer-icon note-timer-icon-play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
         <span class="note-timer-icon note-timer-icon-pause"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></span>
-      </button>
+      </button>`
+      : '';
+    timeDisplay = `<span class="note-timer-badge ${running ? 'note-timer-running' : ''}" data-id="${task.id}" data-elapsed="${task.timerElapsedSeconds || 0}" data-running="${running}" data-started="${task.timerStartedAt || ''}">
+      ${timerBtnHtml}
       <span class="note-timer-value">${formatDuration(elapsed)}</span>
     </span>`;
   } else if (!isCallMeetingChat && remaining && remaining !== 'overdue' && !isCompleted && !hasNoDeadline) {
@@ -540,13 +547,11 @@ export function renderTaskItem(task) {
   if (isCrmGroupViewOnly) {
     bottomButtonHtml = '';
   } else if (isNote) {
-    const myUserId = window._currentVtigerUserId || '';
-    const isAssignedToMe = task.assignedTo && myUserId && String(task.assignedTo) === String(myUserId);
     const isAssigned = !!task.assignedTo;
     let assignBtn;
     if (!isAssigned) {
       assignBtn = `<button type="button" class="note-assign-btn btn-dock btn-dock-secondary btn-dock-sm" data-id="${task.id}" data-action="assign">Взять себе</button>`;
-    } else if (isAssignedToMe) {
+    } else if (noteIsAssignedToMe) {
       assignBtn = `<button type="button" class="note-assign-btn btn-dock btn-dock-secondary btn-dock-sm" data-id="${task.id}" data-action="release">Вернуть в группу</button>`;
     } else {
       // Назначена на другого — кнопку «Вернуть» не показываем

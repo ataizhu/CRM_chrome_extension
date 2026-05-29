@@ -2023,15 +2023,37 @@ body.dark-theme .task-activity-icon-chat { color: oklch(0.7 0.15 85); }
   color: var(--foreground);
 }
 
+@keyframes note-timer-pulse {
+  0%, 100% {
+    border-color: oklch(0.75 0.12 85 / 0.5);
+    box-shadow: 0 0 0 1px oklch(0.75 0.1 85 / 0.3), 0 2px 8px oklch(0.6 0.1 85 / 0.1);
+  }
+  50% {
+    border-color: oklch(0.7 0.15 75 / 0.9);
+    box-shadow: 0 0 0 2px oklch(0.72 0.14 75 / 0.5), 0 2px 14px oklch(0.6 0.12 85 / 0.25);
+  }
+}
+
 .task-type-note.note-timer-active {
   background: linear-gradient(135deg, oklch(0.98 0.03 85 / 0.7), oklch(0.97 0.02 85 / 0.5));
   border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 2px oklch(0.75 0.1 85 / 0.6), 0 2px 8px oklch(0.6 0.1 85 / 0.15);
+  animation: note-timer-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes note-timer-pulse-dark {
+  0%, 100% {
+    border-color: oklch(0.5 0.1 85 / 0.5);
+    box-shadow: 0 0 0 1px oklch(0.5 0.1 85 / 0.3), 0 2px 8px oklch(0.3 0.05 85 / 0.15);
+  }
+  50% {
+    border-color: oklch(0.55 0.14 75 / 0.9);
+    box-shadow: 0 0 0 2px oklch(0.5 0.12 75 / 0.5), 0 2px 14px oklch(0.35 0.08 85 / 0.3);
+  }
 }
 
 body.dark-theme .task-type-note.note-timer-active {
   background: linear-gradient(135deg, oklch(0.22 0.04 85 / 0.8), oklch(0.18 0.03 85 / 0.6));
-  box-shadow: 0 0 0 2px oklch(0.5 0.1 85 / 0.5), 0 2px 8px oklch(0.2 0 0 / 0.3);
+  animation: note-timer-pulse-dark 2.5s ease-in-out infinite;
 }
 
 .note-to-task-btn {

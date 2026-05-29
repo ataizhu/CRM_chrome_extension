@@ -1,17 +1,74 @@
 // ============================================================
-// Кросс-браузерная совместимость (Chrome/Edge vs Firefox)
+// Кросс-браузерная совместимость (Chrome/Edge vs Firefox vs Yandex)
 // ============================================================
 
 const isFirefox = typeof browser !== 'undefined' && browser.runtime && browser.runtime.id;
 
-/** Открыть боковую панель (sidePanel в Chrome/Edge, sidebarAction в Firefox) */
-async function openSidePanel(tabId) {
-  if (chrome.sidePanel && chrome.sidePanel.open) {
-    return chrome.sidePanel.open({ tabId });
+// Ширина окна-фолбэка для браузеров без Side Panel API (например, Yandex Browser)
+const PANEL_WINDOW_WIDTH = 420;
+// id окна-фолбэка, чтобы не плодить копии
+let panelWindowId = null;
+
+/**
+ * Фолбэк для браузеров без chrome.sidePanel (например, Yandex Browser):
+ * открыть sidepanel.html отдельным узким окном, прижатым к правому краю
+ * текущего окна браузера — визуально похоже на боковую панель.
+ */
+async function openPanelWindow() {
+  // Уже открыто — просто фокусируем, не создаём копию
+  if (panelWindowId !== null) {
+    try {
+      await chrome.windows.update(panelWindowId, { focused: true });
+      return;
+    } catch {
+      panelWindowId = null; // окно было закрыто пользователем
+    }
   }
-  if (isFirefox && browser.sidebarAction) {
+
+  // Базовые размеры; если получится — прижмём к правому краю окна браузера
+  const opts = {
+    url: chrome.runtime.getURL('sidepanel.html'),
+    type: 'popup',
+    width: PANEL_WINDOW_WIDTH,
+    height: 720
+  };
+  try {
+    const cur = await chrome.windows.getCurrent();
+    if (cur && typeof cur.left === 'number' && typeof cur.width === 'number') {
+      const left = cur.left + cur.width - PANEL_WINDOW_WIDTH;
+      if (left >= 0) opts.left = left;
+      if (typeof cur.top === 'number') opts.top = cur.top;
+      if (typeof cur.height === 'number' && cur.height > 0) opts.height = cur.height;
+    }
+  } catch {
+    // не удалось получить размеры окна — откроем с базовыми
+  }
+
+  const win = await chrome.windows.create(opts);
+  panelWindowId = win.id;
+}
+
+// Сбрасываем id, когда окно-фолбэк закрывают
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (windowId === panelWindowId) panelWindowId = null;
+});
+
+/** Открыть боковую панель (sidePanel в Chrome/Edge, sidebarAction в Firefox, окно — Yandex и др.) */
+async function openSidePanel(tabId) {
+  // Chrome / Edge — нативная боковая панель
+  if (chrome.sidePanel && chrome.sidePanel.open) {
+    try {
+      return await chrome.sidePanel.open({ tabId });
+    } catch (err) {
+      console.warn('sidePanel.open не сработал, открываю окном:', err && err.message);
+    }
+  }
+  // Firefox — sidebarAction
+  if (isFirefox && browser.sidebarAction && browser.sidebarAction.open) {
     return browser.sidebarAction.open();
   }
+  // Yandex и прочие Chromium-браузеры без Side Panel API — отдельное окно
+  return openPanelWindow();
 }
 
 // ============================================================
@@ -188,7 +245,7 @@ function normalizeTasks(tasks) {
 function showNotification(id, title, message) {
   chrome.notifications.create(id, {
     type: 'basic',
-    iconUrl: 'assets/icon.png',
+    iconUrl: 'assets/icon-128.png',
     title,
     message,
     priority: 1
