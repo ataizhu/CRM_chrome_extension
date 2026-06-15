@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "CRM Technologies Tasks",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "Задачи, статистика, авторизация. CRM Technologies.",
   "icons": {
     "16": "assets/icon-16.png",
