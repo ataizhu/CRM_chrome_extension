@@ -55,7 +55,17 @@ export async function loadPersonalTasks() {
 }
 
 export async function savePersonalTasks(tasks) {
-  await chrome.storage.sync.set({ [STORAGE_KEY_PERSONAL]: tasks });
+  // chrome.storage.sync ограничен ~8 КБ на ключ. При переполнении set отклоняется —
+  // отдаём понятную ошибку наверх, чтобы UI не «проглотил» потерю данных молча.
+  try {
+    await chrome.storage.sync.set({ [STORAGE_KEY_PERSONAL]: tasks });
+  } catch (err) {
+    const msg = (err && err.message) || (chrome.runtime && chrome.runtime.lastError && chrome.runtime.lastError.message) || '';
+    if (/quota|QUOTA|MAX_/i.test(msg)) {
+      throw new Error('Превышен лимит синхронизируемого хранилища для личных задач. Удалите часть личных задач или заметок.');
+    }
+    throw err;
+  }
 }
 
 export async function savePersonalTask(task) {

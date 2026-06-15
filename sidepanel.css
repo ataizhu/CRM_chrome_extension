@@ -22,6 +22,25 @@
   --ring: oklch(0.55 0.2 250);
   --success: oklch(0.6 0.18 145);
   --success-foreground: oklch(0.99 0 0);
+  /* === Icon palette (Duotone) — единый источник цвета иконок задач === */
+  --icon-call: oklch(0.55 0.18 145);
+  --icon-call-bg: oklch(0.55 0.18 145 / 0.14);
+  --icon-meeting: oklch(0.55 0.2 250);
+  --icon-meeting-bg: oklch(0.55 0.2 250 / 0.14);
+  --icon-chat: oklch(0.6 0.15 85);
+  --icon-chat-bg: oklch(0.6 0.15 85 / 0.14);
+  --icon-note: var(--muted-foreground);
+  --icon-note-bg: oklch(0.5 0.02 260 / 0.16);
+  --icon-brain: oklch(0.52 0.23 293);          /* ≈ #7c3aed */
+  --icon-brain-bg: oklch(0.52 0.23 293 / 0.14);
+  --icon-done: var(--success);
+  --icon-done-bg: oklch(0.6 0.18 145 / 0.14);
+  --icon-cancel: var(--destructive);
+  --icon-cancel-bg: oklch(0.55 0.22 25 / 0.14);
+  --icon-overdue: var(--destructive);
+  --icon-overdue-bg: oklch(0.55 0.22 25 / 0.14);
+  --icon-muted: var(--muted-foreground);
+  --icon-muted-bg: oklch(0.5 0.02 260 / 0.16);
   --warning: oklch(0.7 0.15 85);
   --warning-foreground: oklch(0.2 0 0);
   --chart-1: oklch(0.55 0.2 250);
@@ -79,6 +98,25 @@ body.dark-theme {
   --ring: oklch(0.65 0.2 200);
   --success: oklch(0.65 0.18 145);
   --success-foreground: oklch(0.1 0 0);
+  /* Icon palette — тёмная тема (ярче stroke, 18% подложка) */
+  --icon-call: oklch(0.7 0.17 150);
+  --icon-call-bg: oklch(0.7 0.17 150 / 0.18);
+  --icon-meeting: oklch(0.68 0.17 255);
+  --icon-meeting-bg: oklch(0.68 0.17 255 / 0.18);
+  --icon-chat: oklch(0.72 0.14 85);
+  --icon-chat-bg: oklch(0.72 0.14 85 / 0.18);
+  --icon-note: var(--muted-foreground);
+  --icon-note-bg: oklch(0.6 0 0 / 0.2);
+  --icon-brain: oklch(0.72 0.16 293);          /* ≈ #a78bfa */
+  --icon-brain-bg: oklch(0.72 0.16 293 / 0.18);
+  --icon-done: var(--success);
+  --icon-done-bg: oklch(0.65 0.18 145 / 0.18);
+  --icon-cancel: var(--destructive);
+  --icon-cancel-bg: oklch(0.55 0.2 25 / 0.2);
+  --icon-overdue: var(--destructive);
+  --icon-overdue-bg: oklch(0.55 0.2 25 / 0.2);
+  --icon-muted: var(--muted-foreground);
+  --icon-muted-bg: oklch(0.6 0 0 / 0.2);
   --warning: oklch(0.75 0.15 85);
   --warning-foreground: oklch(0.1 0 0);
   --chart-1: oklch(0.65 0.2 200);
@@ -1418,38 +1456,65 @@ body.dark-theme .task-item.task-status-in-work {
   margin-top: 2px;
 }
 
-.task-status-slot {
-  display: inline-flex;
+/* === Duotone icon slots: единая геометрия круга 30px === */
+.task-activity-type-slot,
+.task-note-type-slot,
+.task-status-slot,
+.task-brain-btn,
+.task-brain-slot.task-brain-view-only {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
   flex-shrink: 0;
-  margin-top: 2px;
+  position: relative;
+  margin-top: 1px;
+}
+.task-activity-type-slot svg,
+.task-note-type-slot svg,
+.task-status-slot svg,
+.task-brain-btn svg,
+.task-brain-slot svg {
+  width: 17px;
+  height: 17px;
+}
+
+.task-status-slot {
   pointer-events: none;
 }
 .task-status-slot.task-status-check {
-  color: var(--success);
+  background: var(--icon-done-bg);
+  color: var(--icon-done);
 }
 .task-status-slot.task-status-cross {
-  color: var(--muted-foreground);
-}
-body.dark-theme .task-status-slot.task-status-check {
-  color: oklch(0.65 0.18 145);
-}
-body.dark-theme .task-status-slot.task-status-cross {
-  color: var(--muted-foreground);
+  background: var(--icon-cancel-bg);
+  color: var(--icon-cancel);
 }
 
 .task-row {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
   padding: 12px;
-  padding-right: 56px;
   cursor: pointer;
   transition: background var(--transition);
   position: relative;
+}
+
+/* Ярус 1: иконка + тема + один правый контрол */
+.task-row-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+/* Ярус 2: мета во всю ширину под иконку */
+.task-row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .task-row:hover {
@@ -1524,6 +1589,20 @@ body.dark-theme .task-row-crm-owner {
   color: oklch(0.7 0.15 250);
 }
 
+/* Кто создал задачу (smcreatorid) — нейтральная вторичная метка в карточке */
+.task-row-creator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+.task-row-creator svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
 .note-bottom-actions {
   display: flex;
   gap: 8px;
@@ -1531,51 +1610,25 @@ body.dark-theme .task-row-crm-owner {
 }
 
 .task-note-type-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  color: oklch(0.55 0.15 85);
+  background: var(--icon-note-bg);
+  color: var(--icon-note);
 }
 
 .task-note-icon {
   flex-shrink: 0;
 }
 
-.task-activity-type-slot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--muted-foreground);
-}
+.task-activity-type-slot.is-call    { background: var(--icon-call-bg);    color: var(--icon-call); }
+.task-activity-type-slot.is-meeting  { background: var(--icon-meeting-bg); color: var(--icon-meeting); }
+.task-activity-type-slot.is-chat     { background: var(--icon-chat-bg);    color: var(--icon-chat); }
+.task-activity-type-slot.is-call-no-rec { background: var(--icon-muted-bg); color: var(--icon-muted); opacity: 0.9; }
 
 .task-activity-icon {
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
 }
 
-.task-activity-icon-call { color: oklch(0.55 0.18 145); }
-.task-activity-icon-call-no-recording { color: var(--text-muted, #888); opacity: 0.85; }
-.task-activity-icon-meeting { color: oklch(0.55 0.2 250); }
-.task-activity-icon-chat { color: oklch(0.6 0.15 85); }
 
-body.dark-theme .task-activity-icon-call { color: oklch(0.65 0.18 145); }
-body.dark-theme .task-activity-icon-call-no-recording { color: var(--text-muted, #999); opacity: 0.8; }
-body.dark-theme .task-activity-icon-meeting { color: oklch(0.65 0.2 250); }
-body.dark-theme .task-activity-icon-chat { color: oklch(0.7 0.15 85); }
-
-.task-type-simple:not(.task-has-row-recording) .task-row {
-  padding-right: 12px;
-}
-
-.task-type-simple:not(.task-has-row-recording) .task-meta {
-  display: none;
-}
 
 .task-text {
   flex: 0 0 auto;
@@ -1596,14 +1649,9 @@ body.dark-theme .task-activity-icon-chat { color: oklch(0.7 0.15 85); }
 
 .task-meta {
   display: flex;
-  align-items: center;
-  gap: 0px;
-  flex-shrink: 0;
   flex-direction: column;
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .task-status-group {
@@ -1622,7 +1670,7 @@ body.dark-theme .task-activity-icon-chat { color: oklch(0.7 0.15 85); }
   justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: 50%;
   cursor: pointer;
   transition: opacity 0.2s, transform 0.2s;
   position: relative;
@@ -1656,20 +1704,9 @@ body.dark-theme .task-activity-icon-chat { color: oklch(0.7 0.15 85); }
   height: 16px;
 }
 
-.status-icon-completed {
-  color: var(--success);
-  background: oklch(0.6 0.18 145 / 0.12);
-}
-
-.status-icon-overdue {
-  color: var(--destructive);
-  background: oklch(0.55 0.22 25 / 0.12);
-}
-
-.status-icon-no-deadline {
-  color: var(--muted-foreground);
-  background: var(--muted);
-}
+.status-icon-completed { color: var(--icon-done);    background: var(--icon-done-bg); }
+.status-icon-overdue   { color: var(--icon-overdue); background: var(--icon-overdue-bg); }
+.status-icon-no-deadline { color: var(--icon-muted); background: var(--icon-muted-bg); }
 
 .note-timer-badge {
   display: inline-flex;
@@ -1823,61 +1860,44 @@ body.dark-theme .task-activity-icon-chat { color: oklch(0.7 0.15 85); }
   opacity: 0.9;
 }
 
-.task-brain-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+.task-brain-btn,
+.task-brain-slot.task-brain-view-only {
   padding: 0;
   border: none;
-  border-radius: 8px;
-  background: transparent;
+  background: var(--icon-brain-bg);
+  color: var(--icon-brain);
   cursor: pointer;
-  flex-shrink: 0;
+}
+.task-brain-slot.task-brain-view-only { cursor: default; }
+
+.task-brain-btn svg,
+.task-brain-slot svg {
   position: relative;
-}
-.task-brain-btn .brain-icon {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
-}
-.task-brain-btn .brain-icon-animated {
-  display: none;
-}
-.task-brain-btn.in-progress .brain-icon-static {
-  display: none;
-}
-.task-brain-btn.in-progress .brain-icon-animated {
-  display: block;
-}
-.task-brain-btn:hover {
-  background: oklch(0.55 0.22 25 / 0.08);
+  z-index: 1;
 }
 
-/* CRM группа: только просмотр — иконка «в работе» (статичная/анимированная) как в CRM */
-.task-brain-slot.task-brain-view-only {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  position: relative;
+.brain-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--icon-brain-bg);
 }
-.task-brain-slot .brain-icon {
-  width: 32px;
-  height: 32px;
-  object-fit: contain;
+.task-brain-btn.in-progress .brain-halo,
+.task-brain-slot.in-progress .brain-halo {
+  animation: halopulse 1.7s ease-in-out infinite;
 }
-.task-brain-slot .brain-icon-animated {
-  display: none;
+@keyframes halopulse {
+  0%, 100% { transform: scale(0.78); opacity: 0.4; }
+  50%      { transform: scale(1);    opacity: 1; }
 }
-.task-brain-slot.in-progress .brain-icon-static {
-  display: none;
-}
-.task-brain-slot.in-progress .brain-icon-animated {
-  display: block;
+
+.task-brain-btn:hover { filter: brightness(0.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .task-brain-btn.in-progress .brain-halo,
+  .task-brain-slot.in-progress .brain-halo {
+    animation: none;
+  }
 }
 
 .task-detail {
@@ -2304,6 +2324,11 @@ body.dark-theme .task-type-note.note-timer-active {
   background: var(--muted);
   border-radius: 8px;
   padding: 8px 12px;
+  /* Разрешаем выделять и копировать текст описания/результата
+     (предок .task-group имеет draggable, который иначе глушит выделение). */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 .task-edit-btn {
@@ -2824,6 +2849,10 @@ body.dark-theme .form-crm-in-progress-notice {
   padding: 0;
   font-size: 15px;
   resize: vertical;
+  /* В колоночном флексе flex:1 (из .ios-row textarea) перебивает нативный resize —
+     фиксируем basis по контенту, чтобы ручка ресайза реально тянула высоту. */
+  flex: 0 0 auto;
+  overflow: auto;
 }
 
 /* Dropdown rows — label left, value+chevron right */

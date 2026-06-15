@@ -1309,7 +1309,10 @@ export function resetForm(dependencies = {}) {
   if (idEl) idEl.value = '';
   if (head) head.textContent = 'Новая задача';
   if (submitBtn) submitBtn.textContent = 'Создать';
-  if (dependencies.setFormGroupSelection) dependencies.setFormGroupSelection('CRM');
+  // CRM доступна только авторизованным. Без логина дефолтом — первая не-CRM группа,
+  // чтобы форма не открывалась в режиме CRM (Groups.setFormGroupSelection дополнительно страхует).
+  const defaultFormGroup = isAuthed() ? 'CRM' : (groups.find((g) => g !== 'CRM' && g !== CRM_GROUP_NAME) || 'Личные');
+  if (dependencies.setFormGroupSelection) dependencies.setFormGroupSelection(defaultFormGroup);
   if (dependencies.renderFormGroupDropdownList) dependencies.renderFormGroupDropdownList();
   if (dependencies.updateFormGroupTriggerLabel) dependencies.updateFormGroupTriggerLabel();
   if (dependencies.updateFormMode) dependencies.updateFormMode();
@@ -2031,7 +2034,9 @@ export function setupTasksDelegation(dependencies = {}) {
   let _draggedGroup = null;
   tasksContainer.addEventListener('dragstart', (e) => {
     const group = e.target.closest('.task-group');
-    if (!group || !group.draggable) return;
+    // Перетаскивание группы стартует только с ручки ⋮⋮ (draggable теперь на ней),
+    // иначе текст внутри карточек нельзя было бы выделять/копировать.
+    if (!group || !e.target.closest('.group-drag-handle')) return;
     _draggedGroup = group.dataset.groupName;
     if (_draggedGroup) {
       e.dataTransfer.effectAllowed = 'move';

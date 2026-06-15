@@ -79,6 +79,7 @@ export function refreshTaskTimeBadges() {
       if (statusIcon) {
         statusIcon.className = 'task-status-icon status-icon-no-deadline';
         statusIcon.setAttribute('data-tooltip', 'Без срока');
+        statusIcon.innerHTML = statusIconGlyph('status-icon-no-deadline');
         statusIcon.style.display = 'flex';
       }
       if (badge) badge.style.display = 'none';
@@ -89,6 +90,7 @@ export function refreshTaskTimeBadges() {
       if (statusIcon) {
         statusIcon.className = 'task-status-icon status-icon-completed';
         statusIcon.setAttribute('data-tooltip', 'Выполнено');
+        statusIcon.innerHTML = statusIconGlyph('status-icon-completed');
         statusIcon.style.display = 'flex';
       }
       if (badge) badge.style.display = 'none';
@@ -102,6 +104,7 @@ export function refreshTaskTimeBadges() {
       if (statusIcon) {
         statusIcon.className = 'task-status-icon status-icon-overdue';
         statusIcon.setAttribute('data-tooltip', 'Просрочено');
+        statusIcon.innerHTML = statusIconGlyph('status-icon-overdue');
         statusIcon.style.display = 'flex';
       }
       if (badge) badge.style.display = 'none';
@@ -337,9 +340,9 @@ export function renderTaskGroup(groupName, tasks, index = 0) {
     : (selectedSet.size === 0 ? tasks : tasks.filter(t => selectedSet.has(t.related_setype || '__none__')));
 
   return `
-    <div class="task-group" data-group-id="${groupId}" data-group-name="${escapeHtml(groupName)}" draggable="true">
+    <div class="task-group" data-group-id="${groupId}" data-group-name="${escapeHtml(groupName)}">
       <div class="group-header" data-group-id="${groupId}">
-        <span class="group-drag-handle" title="Перетащите для изменения порядка">⋮⋮</span>
+        <span class="group-drag-handle" title="Перетащите для изменения порядка" draggable="true">⋮⋮</span>
         <div class="group-title">
           <span class="group-dot ${chartClass}"></span>
           <span>${escapeHtml(displayName)}</span>
@@ -370,6 +373,21 @@ const ACTIVITY_TYPE_ICONS = {
 /** Иконка заметки — стикер / документ */
 const NOTE_ICON = `<svg class="task-note-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
 
+/** Иконка «мозг» (статус «в работе») — Lucide brain, дуотон. Размеры заданы явно, как у остальных иконок. */
+const BRAIN_ICON = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/></svg>`;
+
+/** Единый источник «класс чипа срока → SVG-глиф». Используется и при инициализации, и в live-update. */
+function statusIconGlyph(statusClass) {
+  if (statusClass === 'status-icon-completed') {
+    return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  }
+  if (statusClass === 'status-icon-no-deadline') {
+    return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+  }
+  // status-icon-overdue (и дефолт) — часы
+  return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+}
+
 export function renderTaskItem(task) {
   const isNote = task.group === 'Заметки';
   const isCrmGroupViewOnly = task.group === CRM_GROUP_NAME;
@@ -386,6 +404,14 @@ export function renderTaskItem(task) {
   const isCallMeetingChat = task.activitytype && ACTIVITY_TYPE_ICONS[task.activitytype];
   const recordingPlayUrls = getRecordingPlayUrls(task.recording_url);
   const isCallNoRecording = task.activitytype === 'Call' && recordingPlayUrls.length === 0;
+
+  const activityTypeMod = isCallNoRecording
+    ? 'is-call-no-rec'
+    : task.activitytype === 'Call'
+      ? 'is-call'
+      : task.activitytype === 'Meeting'
+        ? 'is-meeting'
+        : 'is-chat';
 
   let statusClass = '';
   let statusTooltip = '';
@@ -442,14 +468,12 @@ export function renderTaskItem(task) {
   ].filter(Boolean).join(' ');
 
   const isCrmCanWork = showCheckbox && (task.group === 'CRM') && !isCallMeetingChat && !isCrmGroupViewOnly;
-  const brainStaticUrl = 'assets/brain-static.jpg';
-  const brainAnimatedUrl = 'assets/brain-process.gif';
   let checkboxHtml;
   if (isCrmGroupViewOnly) {
     if (isCallMeetingChat) {
       const iconSvg = isCallNoRecording ? ACTIVITY_TYPE_ICONS.CallNoRecording : ACTIVITY_TYPE_ICONS[task.activitytype];
       const iconLabel = isCallNoRecording ? 'Звонок (запись не состоялась)' : (task.activitytype === 'Call' ? 'Звонок' : task.activitytype === 'Meeting' ? 'Встреча' : 'Чат');
-      checkboxHtml = `<span class="task-activity-type-slot" title="${iconLabel}" aria-hidden="true">${iconSvg}</span>`;
+      checkboxHtml = `<span class="task-activity-type-slot ${activityTypeMod}" title="${iconLabel}" aria-hidden="true">${iconSvg}</span>`;
     } else if (isHeld) {
       checkboxHtml = `<span class="task-status-slot task-status-check" aria-hidden="true" title="Выполнено">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -459,9 +483,9 @@ export function renderTaskItem(task) {
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </span>`;
     } else if (isInWork) {
-      checkboxHtml = `<span class="task-brain-slot task-brain-view-only ${isInWork ? 'in-progress' : ''}" title="В работе" aria-hidden="true">
-      <img class="brain-icon brain-icon-static" src="${brainStaticUrl}" alt="" />
-      <img class="brain-icon brain-icon-animated" src="${brainAnimatedUrl}" alt="" />
+      checkboxHtml = `<span class="task-brain-slot task-brain-view-only in-progress" title="В работе" aria-hidden="true">
+      <span class="brain-halo" aria-hidden="true"></span>
+      ${BRAIN_ICON}
     </span>`;
     } else {
       checkboxHtml = '<span class="task-checkbox-placeholder" aria-hidden="true" title="Только просмотр"></span>';
@@ -471,11 +495,11 @@ export function renderTaskItem(task) {
   } else if (isCallMeetingChat) {
     const iconSvg = isCallNoRecording ? ACTIVITY_TYPE_ICONS.CallNoRecording : ACTIVITY_TYPE_ICONS[task.activitytype];
     const iconLabel = isCallNoRecording ? 'Звонок (запись не состоялась)' : (task.activitytype === 'Call' ? 'Звонок' : task.activitytype === 'Meeting' ? 'Встреча' : 'Чат');
-    checkboxHtml = `<span class="task-activity-type-slot" title="${iconLabel}" aria-hidden="true">${iconSvg}</span>`;
+    checkboxHtml = `<span class="task-activity-type-slot ${activityTypeMod}" title="${iconLabel}" aria-hidden="true">${iconSvg}</span>`;
   } else if (isCrmCanWork) {
     checkboxHtml = `<button type="button" class="task-brain-btn ${isInWork ? 'in-progress' : ''}" data-id="${task.id}" title="${isInWork ? 'В работе' : 'Начать работу'}" aria-label="${isInWork ? 'В работе' : 'Начать работу'}">
-      <img class="brain-icon brain-icon-static" src="${brainStaticUrl}" alt="" />
-      <img class="brain-icon brain-icon-animated" src="${brainAnimatedUrl}" alt="" />
+      <span class="brain-halo" aria-hidden="true"></span>
+      ${BRAIN_ICON}
     </button>`;
   } else if (showCheckbox) {
     checkboxHtml = `<input type="checkbox" class="task-checkbox" ${task.completed ? 'checked' : ''} data-id="${task.id}" />`;
@@ -599,39 +623,47 @@ export function renderTaskItem(task) {
           .join('')
       : '';
 
-  const statusGroupHtml = isNote
-    ? `<div class="task-status-group">${timeDisplay}</div>`
-    : isCallMeetingChat
-      ? (recordingPlayUrls.length ? `<div class="task-status-group">${playRecordingBtnHtml}</div>` : '')
-      : `<div class="task-status-group">
-          ${recordingPlayUrls.length ? playRecordingBtnHtml : (statusClass ? `
-            <span class="task-status-icon ${statusClass}" data-tooltip="${statusTooltip}">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-            </span>
-          ` : '')}
-          ${timeDisplay}
-        </div>`;
+  // Ярус 1 — правый контрол: один основной элемент статуса/действия.
+  // Заметка → интерактивный таймер (timeDisplay); иначе записи → ▷-кнопки;
+  // иначе чип срока, НО только если это НЕ call/meeting/chat — у звонков/встреч/чатов
+  // чип НЕ показывался (исходная логика: только ▷-кнопки записи либо ничего). Сохраняем.
+  let rightControlHtml = '';
+  if (isNote) {
+    rightControlHtml = timeDisplay;
+  } else if (recordingPlayUrls.length) {
+    rightControlHtml = playRecordingBtnHtml;
+  } else if (statusClass && !isCallMeetingChat) {
+    rightControlHtml = `<span class="task-status-icon ${statusClass}" data-tooltip="${statusTooltip}">${statusIconGlyph(statusClass)}</span>`;
+  }
+  const rightControlBlock = rightControlHtml
+    ? `<div class="task-meta"><div class="task-status-group">${rightControlHtml}</div></div>`
+    : '';
+
+  // Ярус 2 — мета во всю ширину. Порядок: время → связанное → кто → группа.
+  // Для не-заметок timeDisplay — это .task-time-badge (остаток времени) → уходит в мету.
+  const metaTimeBadge = isNote ? '' : timeDisplay;
+  const metaLinesHtml = [
+    taskTimeAboveTitle ? `<div class="task-row-time">${escapeHtml(taskTimeAboveTitle)}</div>` : '',
+    metaTimeBadge,
+    taskRowRelatedHtml,
+    isNote && task.assignedTo ? `<div class="task-row-assignee"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escapeHtml(task.assignedToName || vtigerUsersMap[task.assignedTo] || task.assignedTo)}</div>` : '',
+    task.group === CRM_GROUP_NAME && task.user_display_name ? `<div class="task-row-crm-owner"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escapeHtml(task.user_display_name)}</div>` : '',
+    (isCrm || isCrmGroupViewOnly) && task.creator_display_name ? `<div class="task-row-creator" title="Кто создал задачу"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Создал: ${escapeHtml(task.creator_display_name)}</div>` : '',
+    isNote && task.syncGroupName ? `<div class="task-row-sync-group">${escapeHtml(task.syncGroupName)}</div>` : '',
+  ].filter(Boolean).join('');
+  const metaFullHtml = metaLinesHtml ? `<div class="task-row-meta">${metaLinesHtml}</div>` : '';
 
   const hasRowRecording = recordingPlayUrls.length > 0;
 
   return `
     <div class="task-item ${useCompletedClass ? 'completed' : ''} ${statusRowClasses} ${hasRowRecording ? 'task-has-row-recording' : ''} ${isCrmGroupViewOnly ? 'task-view-only' : ''} ${isNote && task.taskFormed ? 'note-formed' : ''}" data-id="${task.id}" data-group="${escapeHtml(task.group || '')}" data-start="${task.start || ''}" data-end="${task.end || ''}" data-completed="${task.completed ? '1' : '0'}" data-eventstatus="${escapeHtml(task.eventstatus || '')}" data-activitytype="${escapeHtml(task.activitytype || '')}">
       <div class="task-row">
-        ${checkboxHtml}
-        <div class="task-row-text-wrap">
-          ${taskTimeAboveTitle ? `<div class="task-row-time">${escapeHtml(taskTimeAboveTitle)}</div>` : ''}
-          ${isNote && task.syncGroupName ? `<div class="task-row-sync-group">${escapeHtml(task.syncGroupName)}</div>` : ''}
-          <p class="task-text">${escapeHtml(task.text)}</p>
-          ${isNote && task.assignedTo ? `<div class="task-row-assignee"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escapeHtml(task.assignedToName || vtigerUsersMap[task.assignedTo] || task.assignedTo)}</div>` : ''}
-          ${task.group === CRM_GROUP_NAME && task.user_display_name ? `<div class="task-row-crm-owner"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> ${escapeHtml(task.user_display_name)}</div>` : ''}
-          ${taskRowRelatedHtml}
+        <div class="task-row-head">
+          ${checkboxHtml}
+          <div class="task-row-text-wrap"><p class="task-text">${escapeHtml(task.text)}</p></div>
+          ${rightControlBlock}
         </div>
-        <div class="task-meta">
-          ${statusGroupHtml}
-        </div>
+        ${metaFullHtml}
       </div>
       <div class="task-detail">
         <div class="task-detail-body">

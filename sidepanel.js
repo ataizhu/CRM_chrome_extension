@@ -136,7 +136,6 @@ function getDependencies() {
     toggleTaskComplete: Tasks.toggleTaskComplete,
     completeCrmTaskWithDescription: Tasks.completeCrmTaskWithDescription,
     setTaskStatus: Tasks.setTaskStatus,
-    getTasksByPeriod: Tasks.getTasksByPeriod,
     deletePersonalTask: Tasks.deletePersonalTask,
     // Render
     renderTasks: Render.renderTasks,

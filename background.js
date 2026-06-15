@@ -122,26 +122,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
-  if (message.action === 'openSettings') {
-    chrome.windows.create({
-      url: chrome.runtime.getURL('settings.html'),
-      type: 'popup',
-      width: 440,
-      height: 620
-    });
-    sendResponse({ ok: true });
-    return false;
-  }
-  if (message.action === 'openStats') {
-    chrome.windows.create({
-      url: chrome.runtime.getURL('stats.html'),
-      type: 'popup',
-      width: 560,
-      height: 640
-    });
-    sendResponse({ ok: true });
-    return false;
-  }
 });
 
 // ============================================================
@@ -286,6 +266,10 @@ async function bgCheckTasks() {
     return !t.completed && !/^(Held|Выполнено|Not Held|Отменено)$/i.test(status);
   });
   for (const task of activeTasks) {
+    // Только реальные дедлайны: задачи без заданного времени (date-only) приходят с
+    // has_due_time=false и синтетическим концом 23:59:59. 24ч до него ≈ полночь, из-за
+    // чего все «завтрашние» задачи разом пересекали порог и давали полуночный шквал.
+    if (task.has_due_time === false) continue;
     const end = task.due_date_raw || task.end;
     if (!end) continue;
     const deadlineMs = new Date(end).getTime();
@@ -341,8 +325,18 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// Клик по уведомлению — открыть боковую панель
+// Клик по уведомлению (единый обработчик):
+//  - таймерные (timer-*) — снимаем ожидание автопаузы, панель НЕ открываем;
+//  - остальные (новые задачи, дедлайны) — открываем боковую панель.
 chrome.notifications.onClicked.addListener(async (notificationId) => {
+  if (notificationId.startsWith('timer-')) {
+    chrome.notifications.clear(notificationId);
+    if (notificationId.startsWith('timer-idle-') || notificationId.startsWith('timer-hourly-')) {
+      chrome.alarms.clear('timerIdleAutopause');
+      await chrome.storage.local.remove(['timerIdleStart']);
+    }
+    return;
+  }
   chrome.notifications.clear(notificationId);
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (tab) {
@@ -574,11 +568,3 @@ chrome.idle.onStateChanged.addListener(async (state) => {
   }
 });
 
-// Клик по уведомлению таймера — "Продолжить"
-chrome.notifications.onClicked.addListener(async (notificationId) => {
-  if (notificationId.startsWith('timer-idle-') || notificationId.startsWith('timer-hourly-')) {
-    chrome.notifications.clear(notificationId);
-    chrome.alarms.clear('timerIdleAutopause');
-    await chrome.storage.local.remove(['timerIdleStart']);
-  }
-});

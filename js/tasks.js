@@ -124,19 +124,12 @@ export function stopSyncNotesPolling() {
 }
 
 function _normalizeCrmTasks(tasks) {
-  tasks.forEach((t) => {
-    t.group = 'CRM';
-    if (!t.createdAt) t.createdAt = new Date().toISOString();
-  });
-  return tasks;
+  // Иммутабельно: возвращаем новые объекты, не мутируя входные задачи.
+  return tasks.map((t) => ({ ...t, group: 'CRM', createdAt: t.createdAt || new Date().toISOString() }));
 }
 
 function _normalizeCrmGroupTasks(tasks) {
-  tasks.forEach((t) => {
-    t.group = CRM_GROUP_NAME;
-    if (!t.createdAt) t.createdAt = new Date().toISOString();
-  });
-  return tasks;
+  return tasks.map((t) => ({ ...t, group: CRM_GROUP_NAME, createdAt: t.createdAt || new Date().toISOString() }));
 }
 
 export async function loadMergedTasks(dependencies = {}, options = {}) {
@@ -470,9 +463,25 @@ export async function deleteTask(id, dependencies = {}) {
     // console.log('Удаление задачи:', { id, taskId: task.id, group: task.group, isCrm: isCrmGroup(task.group) });
 
     if (task && isCrmGroup(task.group)) {
-      // Для CRM задач помечаем как удаленные локально
       const taskId = task.id.toString().replace(/^crm_/, '');
-      // console.log('Помечаем CRM задачу как удаленную:', taskId);
+      // Своя задача (группа «CRM») — реально удаляем в CRM (мягкое удаление).
+      // «CRM группа» — чужие задачи, только просмотр: в CRM не трогаем, прячем локально.
+      if (task.group === 'CRM' && authEndpoint && isAuthed()) {
+        try {
+          const res = await (dependencies.apiFetch || apiFetch)(`${dependencies.authEndpoint || authEndpoint}?action=delete&id=${encodeURIComponent(task.id)}`, {
+            method: 'DELETE',
+          }, dependencies);
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            throw new Error(d.error || d.message || `Ошибка удаления: ${res.status}`);
+          }
+        } catch (err) {
+          if (err.message && err.message.includes('Сессия истекла')) { showError(err.message); return; }
+          showError(err.message || 'Не удалось удалить задачу в CRM');
+          return; // сервер не подтвердил — локально не прячем
+        }
+      }
+      // Локальное скрытие: мгновенно убрать из списка и подстраховка, если сервер ещё не отдал свежий список
       await (markDeleted || markCrmTaskAsDeleted)(taskId);
       await removeCrmTaskFromCache(taskId);
 

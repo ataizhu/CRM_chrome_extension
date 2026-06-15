@@ -145,12 +145,9 @@ export function renderGroupDropdownList(dependencies = {}) {
       e.stopPropagation();
       const groupName = checkbox.dataset.group;
       if (checkbox.checked) {
-        if (!visibleGroups.includes(groupName)) {
-          visibleGroups.push(groupName);
-        }
+        if (!visibleGroups.includes(groupName)) setVisibleGroups([...visibleGroups, groupName]);
       } else {
-        const filtered = visibleGroups.filter(g => g !== groupName);
-        setVisibleGroups(filtered);
+        setVisibleGroups(visibleGroups.filter(g => g !== groupName));
       }
       await chrome.storage.sync.set({ visibleGroups });
 
@@ -298,7 +295,7 @@ export function setupGroupDropdown(dependencies = {}) {
       if (updateGroupTriggerLabel) updateGroupTriggerLabel();
       chrome.storage.sync.set({ selectedGroup: name });
       if (!visibleGroups.includes(name)) {
-        visibleGroups.push(name);
+        setVisibleGroups([...visibleGroups, name]);
         chrome.storage.sync.set({ visibleGroups });
       }
       hideGroupAddRow();
@@ -306,11 +303,11 @@ export function setupGroupDropdown(dependencies = {}) {
       if (loadTasks) loadTasks(dependencies, { useCacheOnly: true });
       return;
     }
-    groups.push(name);
+    setGroups([...groups, name]);
     saveGroups();
     setSelectedGroup(name);
     if (!visibleGroups.includes(name)) {
-      visibleGroups.push(name);
+      setVisibleGroups([...visibleGroups, name]);
       chrome.storage.sync.set({ visibleGroups });
     }
     if (updateGroupTriggerLabel) updateGroupTriggerLabel();
