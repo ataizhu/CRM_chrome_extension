@@ -7,7 +7,7 @@ import { loadGroups, saveGroups, renderGroupDropdownList, updateGroupTriggerLabe
 import { loadTasks, loadMergedTasks, createTask, updateTask, deleteTask, toggleTaskComplete, completeCrmTaskWithDescription, setTaskStatus, invalidateSyncNotesCache, startSyncNotesPolling, stopSyncNotesPolling, periodToDateFrom } from './tasks.js';
 import { loadPersonalTasks, savePersonalTasks, loadDeletedCrmTasks, saveDeletedCrmTasks, markCrmTaskAsDeleted, removeCrmTaskFromCache, updateNoteTimer, saveSelectedSyncGroupId } from './storage.js';
 import { renderTasks, refreshTaskTimeBadges, refreshNoteTimerDisplays, toggleGroup, formatDuration, formatTimerSegmentsForTaskResult } from './render.js';
-import { openTaskFormModal, closeTaskFormModal, showGroupSelectionModal, showSegmentChoiceModal, showSegmentEditorModal } from './modals.js';
+import { openTaskFormModal, closeTaskFormModal, showSegmentChoiceModal, showSegmentEditorModal } from './modals.js';
 import { getDateTimePickerValue, setDateTimePickerValue, resetDateTimePickers, initDateTimePickers } from './datetime-picker.js';
 import { renderStats, switchTab } from './stats.js';
 import { fetchEventStatuses, fetchActivityTypes, fetchRelatedModules, searchRelated, fetchUsers, apiFetch } from './api.js';
@@ -950,119 +950,6 @@ export function setupSettingsTab(dependencies = {}) {
     });
   }
 
-  const clearAllTasksBtn = _formEl('clearAllTasksBtn');
-  if (clearAllTasksBtn) {
-    clearAllTasksBtn.addEventListener('click', async () => {
-      const merged = await (dependencies.loadMergedTasks || loadMergedTasks)(dependencies);
-      if (merged.length === 0) {
-        showSyncStatus('Нет задач для очистки.', 'error');
-        return;
-      }
-
-      const tasksByGroup = {};
-      merged.forEach(task => {
-        const group = task.group || 'Личные';
-        if (!tasksByGroup[group]) {
-          tasksByGroup[group] = [];
-        }
-        tasksByGroup[group].push(task);
-      });
-
-      const groupNames = Object.keys(tasksByGroup);
-      // console.log('[Массовое удаление] Группы с задачами:', groupNames);
-      const selectedGroups = await (dependencies.showGroupSelectionModal || showGroupSelectionModal)(groupNames, tasksByGroup);
-      // console.log('[Массовое удаление] Выбранные группы:', selectedGroups);
-      if (!selectedGroups || selectedGroups.length === 0) {
-        // console.log('[Массовое удаление] Группы не выбраны, отмена');
-        return;
-      }
-
-      let totalToDelete = 0;
-      selectedGroups.forEach(group => {
-        totalToDelete += tasksByGroup[group].length;
-      });
-
-      if (!confirm(`Вы уверены, что хотите удалить ${totalToDelete} задач из групп: ${selectedGroups.join(', ')}? Это действие нельзя отменить.`)) {
-        return;
-      }
-
-      try {
-        const loadDeleted = dependencies.loadDeletedCrmTasks || loadDeletedCrmTasks;
-        const saveDeleted = dependencies.saveDeletedCrmTasks || saveDeletedCrmTasks;
-
-        for (const group of selectedGroups) {
-          // console.log('[Массовое удаление] Обработка группы:', group, 'задач:', tasksByGroup[group]?.length);
-          if (group === 'CRM') {
-            const crmTasks = tasksByGroup[group];
-            const idsToMark = new Set();
-            for (const task of crmTasks) {
-              const raw = task.id.toString();
-              const taskId = raw.replace(/^crm_/, '');
-              idsToMark.add(taskId);
-            }
-            // console.log('[Массовое удаление CRM] ID для пометки:', [...idsToMark]);
-            if (idsToMark.size === 0) {
-              // console.log('[Массовое удаление CRM] Нет ID для пометки, пропускаем');
-              continue;
-            }
-
-            const deleted = await loadDeleted();
-            // console.log('[Массовое удаление CRM] Текущие удаленные ID (количество):', deleted.length);
-            const deletedSet = new Set(deleted.map((d) => d.toString()));
-            let added = 0;
-            for (const id of idsToMark) {
-              const s = id.toString();
-              if (!deletedSet.has(s)) {
-                deleted.push(s);
-                deletedSet.add(s);
-                added++;
-              }
-            }
-            if (added > 0) {
-              try {
-                await saveDeleted(deleted);
-                for (const id of idsToMark) await removeCrmTaskFromCache(id);
-                // console.log('[Массовое удаление CRM] помечено:', added, 'ID:', [...idsToMark].slice(0, 10), '... (показано первые 10)');
-              } catch (err) {
-                // console.error('[Массовое удаление CRM] Ошибка сохранения:', err);
-                // Если ошибка квоты, пробуем сохранить только новые ID
-                if (err.message && err.message.includes('quota')) {
-                  // console.warn('[Массовое удаление CRM] Превышен лимит, сохраняем только новые ID');
-                  const newIds = [...idsToMark].filter(id => !deletedSet.has(id.toString()));
-                  if (newIds.length > 0) {
-                    const currentDeleted = await loadDeleted();
-                    const combined = [...currentDeleted, ...newIds];
-                    // Ограничиваем до последних 10000
-                    const limited = combined.slice(-10000);
-                    await saveDeleted(limited);
-                    // console.log('[Массовое удаление CRM] Сохранено ограниченное количество:', limited.length);
-                  }
-                } else {
-                  throw err;
-                }
-              }
-            } else {
-              // console.log('[Массовое удаление CRM] Все ID уже были помечены как удаленные');
-            }
-          } else {
-            const personalTasks = await (dependencies.loadPersonalTasks || loadPersonalTasks)();
-            const groupTasks = tasksByGroup[group];
-            const taskIds = new Set(groupTasks.map((t) => t.id));
-            // console.log('[Массовое удаление личных] Удаляем задачи с ID:', [...taskIds]);
-            const filtered = personalTasks.filter((t) => !taskIds.has(t.id));
-            // console.log('[Массовое удаление личных] Было:', personalTasks.length, 'стало:', filtered.length);
-            await (dependencies.savePersonalTasks || savePersonalTasks)(filtered);
-          }
-        }
-
-        if (dependencies.loadTasks) await dependencies.loadTasks(dependencies, { useCacheOnly: true });
-        showSyncStatus(`Удалено ${totalToDelete} задач.`, 'success');
-      } catch (err) {
-        // console.error('[Массовое удаление]', err);
-        showSyncStatus('Ошибка при очистке задач: ' + (err.message || 'неизвестная ошибка'), 'error');
-      }
-    });
-  }
 
   setupVersionClick();
 }

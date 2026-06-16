@@ -166,7 +166,6 @@ function getDependencies() {
     // Modals
     openTaskFormModal: Modals.openTaskFormModal,
     closeTaskFormModal: Modals.closeTaskFormModal,
-    showGroupSelectionModal: Modals.showGroupSelectionModal,
     // Stats
     renderStats: Stats.renderStats,
     switchTab: Stats.switchTab,

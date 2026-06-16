@@ -95,10 +95,6 @@ export async function updateNoteTimer(noteId, running, elapsedSeconds, startedAt
   await savePersonalTasks(tasks);
 }
 
-export async function clearAllPersonalTasks() {
-  await savePersonalTasks([]);
-}
-
 export async function deletePersonalTasksByGroup(groupName) {
   const tasks = await loadPersonalTasks();
   const filtered = tasks.filter((t) => t.group !== groupName);
