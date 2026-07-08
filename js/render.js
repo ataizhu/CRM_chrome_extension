@@ -158,7 +158,7 @@ export function renderTasks(tasks) {
   };
   const taskSortKeyByCreated = (t) => t.createdAt ? new Date(t.createdAt).getTime() : 0;
   const isInWorkTask = (t) => eventStatusKind(t.eventstatus) === 'in_work';
-  const isNoteTimerRunning = (t) => t.group === 'Заметки' && !!t.timerRunning;
+  const isNoteTimerRunning = (t) => !!t.timerRunning;
   const isDesc = taskSortOrder === 'date_desc';
   Object.keys(grouped).forEach((g) => {
     grouped[g].sort((a, b) => {
@@ -356,10 +356,49 @@ export function renderTaskGroup(groupName, tasks, index = 0) {
         </button>
       </div>
       <div class="group-tasks" id="${groupId}">
-        ${filteredTasks.map(task => renderTaskItem(task)).join('')}
+        ${renderTaskGroupBody(groupName, filteredTasks)}
       </div>
     </div>
   `;
+}
+
+/** Локальные группы (не CRM, не «CRM группа», не Заметки) поддерживают подзадачи. */
+function groupSupportsSubtasks(groupName) {
+  return groupName !== 'CRM' && groupName !== CRM_GROUP_NAME && groupName !== 'Заметки';
+}
+
+/** Тело группы: дерево «родитель → подзадачи» для локальных групп, плоский список для остальных. */
+function renderTaskGroupBody(groupName, tasks) {
+  if (!groupSupportsSubtasks(groupName)) {
+    return tasks.map((t) => renderTaskItem(t)).join('');
+  }
+  const idSet = new Set(tasks.map((t) => String(t.id)));
+  // Верхний уровень: без parentId ИЛИ родитель не в текущем срезе (сирота → показываем как верхнюю)
+  const isTop = (t) => t.parentId == null || !idSet.has(String(t.parentId));
+  const tops = tasks.filter(isTop);
+  return tops.map((parent) => {
+    const pid = String(parent.id);
+    const kids = tasks.filter((t) => t.parentId != null && String(t.parentId) === pid);
+    const total = kids.length;
+    const done = kids.filter((k) => k.completed).length;
+    const collapsed = total > 0 && _collapsedSubtaskParents.has(pid);
+    // На родителе — интерактивный тоггл (шеврон + прогресс), только если есть подзадачи
+    const parentHtml = renderTaskItem(parent, { subtaskToggle: total > 0 ? { done, total, collapsed } : null });
+    const kidsHtml = kids.map((k) => renderTaskItem(k, { isSubtask: true })).join('');
+    // Тихая ghost-строка «+ Подзадача» — всегда под подзадачами (стандартный todo-паттерн, всегда под рукой)
+    const addLine = `<div class="task-subtask-add" data-parent-id="${escapeHtml(pid)}">
+      <button type="button" class="task-add-subtask-btn" data-id="${escapeHtml(pid)}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Подзадача</span>
+      </button>
+      <div class="task-subtask-add-row" style="display:none">
+        <input type="text" class="task-subtask-add-input" placeholder="Название подзадачи" data-parent-id="${escapeHtml(pid)}" maxlength="200" />
+        <button type="button" class="task-subtask-add-confirm btn-dock btn-dock-primary btn-dock-sm" data-id="${escapeHtml(pid)}">Добавить</button>
+      </div>
+    </div>`;
+    const subtasksHtml = `<div class="task-subtasks ${collapsed ? 'collapsed' : ''}" id="subtasks-${escapeHtml(pid)}">${kidsHtml}${addLine}</div>`;
+    return `<div class="task-tree" data-parent-id="${escapeHtml(pid)}">${parentHtml}${subtasksHtml}</div>`;
+  }).join('');
 }
 
 const ACTIVITY_TYPE_ICONS = {
@@ -388,7 +427,7 @@ function statusIconGlyph(statusClass) {
   return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
 }
 
-export function renderTaskItem(task) {
+export function renderTaskItem(task, opts = {}) {
   const isNote = task.group === 'Заметки';
   const isCrmGroupViewOnly = task.group === CRM_GROUP_NAME;
   const remaining = formatRemaining(task.end);
@@ -431,28 +470,37 @@ export function renderTaskItem(task) {
   const noteMyUserId = isNote ? (window._currentVtigerUserId || '') : '';
   const noteIsAssignedToMe = isNote && task.assignedTo && noteMyUserId && String(task.assignedTo) === String(noteMyUserId);
   const noteCanTimer = isNote && noteIsAssignedToMe;
+  // Локальная (личная) задача: не CRM, не «CRM группа», не Заметка — таймер работы доступен всегда (задача твоя).
+  const isLocalTimerTask = !isNote && !isCrmGroupViewOnly && task.group !== 'CRM';
+  const hasWorkTimer = isNote || isLocalTimerTask;
+  const canUseTimer = isNote ? noteCanTimer : isLocalTimerTask;
 
-  let timeDisplay = '';
-  if (isNote) {
-    const elapsed = (task.timerElapsedSeconds || 0) + (task.timerRunning && task.timerStartedAt ? Math.floor((Date.now() - new Date(task.timerStartedAt).getTime()) / 1000) : 0);
-    const running = !!task.timerRunning;
-    const timerBtnHtml = noteCanTimer
-      ? `<button type="button" class="note-timer-btn" data-id="${task.id}" title="${running ? 'Пауза' : 'Старт'}" aria-label="${running ? 'Пауза' : 'Старт'}">
-        <span class="note-timer-icon note-timer-icon-play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-        <span class="note-timer-icon note-timer-icon-pause"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></span>
-      </button>`
-      : '';
-    timeDisplay = `<span class="note-timer-badge ${running ? 'note-timer-running' : ''}" data-id="${task.id}" data-elapsed="${task.timerElapsedSeconds || 0}" data-running="${running}" data-started="${task.timerStartedAt || ''}">
-      ${timerBtnHtml}
-      <span class="note-timer-value">${formatDuration(elapsed)}</span>
-    </span>`;
-  } else if (!isCallMeetingChat && remaining && remaining !== 'overdue' && !isCompleted && !hasNoDeadline) {
-    timeDisplay = `<span class="task-time-badge">
+  // Чип оставшегося срока (задачи с дедлайном; у заметок дедлайна нет). Уходит во 2-й ярус меты.
+  let deadlineChip = '';
+  if (!isNote && !isCallMeetingChat && remaining && remaining !== 'overdue' && !isCompleted && !hasNoDeadline) {
+    deadlineChip = `<span class="task-time-badge">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10"/>
         <polyline points="12 6 12 12 16 14"/>
       </svg>
       <span class="task-time-value">${escapeHtml(remaining)}</span>
+    </span>`;
+  }
+
+  // Таймер работы над задачей (Заметки + локальные задачи) — правый контрол 1-го яруса.
+  let workTimerDisplay = '';
+  if (hasWorkTimer) {
+    const elapsed = (task.timerElapsedSeconds || 0) + (task.timerRunning && task.timerStartedAt ? Math.floor((Date.now() - new Date(task.timerStartedAt).getTime()) / 1000) : 0);
+    const running = !!task.timerRunning;
+    const timerBtnHtml = canUseTimer
+      ? `<button type="button" class="note-timer-btn" data-id="${task.id}" title="${running ? 'Пауза' : 'Старт'}" aria-label="${running ? 'Пауза' : 'Старт'}">
+        <span class="note-timer-icon note-timer-icon-play"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        <span class="note-timer-icon note-timer-icon-pause"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></span>
+      </button>`
+      : '';
+    workTimerDisplay = `<span class="note-timer-badge ${running ? 'note-timer-running' : ''}" data-id="${task.id}" data-elapsed="${task.timerElapsedSeconds || 0}" data-running="${running}" data-started="${task.timerStartedAt || ''}">
+      ${timerBtnHtml}
+      <span class="note-timer-value">${formatDuration(elapsed)}</span>
     </span>`;
   }
 
@@ -464,7 +512,7 @@ export function renderTaskItem(task) {
     isInWork ? 'task-status-in-work' : '',
     isCallMeetingChat ? 'task-type-simple' : '',
     isNote ? 'task-type-note' : '',
-    isNote && task.timerRunning ? 'note-timer-active' : '',
+    task.timerRunning ? 'note-timer-active' : '',
   ].filter(Boolean).join(' ');
 
   const isCrmCanWork = showCheckbox && (task.group === 'CRM') && !isCallMeetingChat && !isCrmGroupViewOnly;
@@ -588,7 +636,8 @@ export function renderTaskItem(task) {
   } else if (showCompleteButton) {
     bottomButtonHtml = `<button type="button" class="task-complete-open-btn btn-dock btn-dock-secondary btn-dock-sm" data-id="${task.id}">${isHeldWithoutDescription ? 'Подтвердить' : 'Завершить'}</button>`;
   } else {
-    bottomButtonHtml = !isCrm && !isCrmGroupViewOnly ? `<button type="button" class="task-edit-btn btn-dock btn-dock-secondary btn-dock-sm" data-id="${task.id}">Редактировать</button>` : '';
+    // Кнопку «Редактировать» убрали — правка доступна карандашом в шапке деталей (.task-edit-pencil-btn)
+    bottomButtonHtml = '';
   }
 
   const taskRowRelatedHtml = hasRelated
@@ -624,12 +673,11 @@ export function renderTaskItem(task) {
       : '';
 
   // Ярус 1 — правый контрол: один основной элемент статуса/действия.
-  // Заметка → интерактивный таймер (timeDisplay); иначе записи → ▷-кнопки;
-  // иначе чип срока, НО только если это НЕ call/meeting/chat — у звонков/встреч/чатов
-  // чип НЕ показывался (исходная логика: только ▷-кнопки записи либо ничего). Сохраняем.
+  // Заметка/локальная задача → интерактивный таймер работы (workTimerDisplay);
+  // иначе записи → ▷-кнопки; иначе иконка статуса срока (у call/meeting/chat её нет).
   let rightControlHtml = '';
-  if (isNote) {
-    rightControlHtml = timeDisplay;
+  if (hasWorkTimer) {
+    rightControlHtml = workTimerDisplay;
   } else if (recordingPlayUrls.length) {
     rightControlHtml = playRecordingBtnHtml;
   } else if (statusClass && !isCallMeetingChat) {
@@ -640,9 +688,22 @@ export function renderTaskItem(task) {
     : '';
 
   // Ярус 2 — мета во всю ширину. Порядок: время → связанное → кто → группа.
-  // Для не-заметок timeDisplay — это .task-time-badge (остаток времени) → уходит в мету.
-  const metaTimeBadge = isNote ? '' : timeDisplay;
+  // Чип срока (deadlineChip) уходит в мету; у заметок он пуст. Таймер работы — в 1-м ярусе.
+  const metaTimeBadge = deadlineChip;
+  const st = opts.subtaskToggle;
+  const hasSubtasks = !!(st && st.total > 0);
+  const subtaskProgressHtml = st && st.total > 0
+    ? `<button type="button" class="task-subtask-toggle ${st.collapsed ? 'collapsed' : ''}" data-parent-id="${escapeHtml(String(task.id))}" title="Свернуть/развернуть подзадачи" aria-label="Свернуть/развернуть подзадачи"><svg class="task-subtask-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg><span class="task-subtask-progress-bar"><span class="task-subtask-progress-fill" style="transform:scaleX(${(st.done / st.total).toFixed(3)})"></span></span><span class="task-subtask-progress-label">${st.done}/${st.total}</span></button>`
+    : '';
+  // Карандаш «детали и правка» — во 2-м ярусе, справа (в 1-й ярус не ставим, чтобы не сдвигать таймер)
+  const detailBtnHtml = hasSubtasks
+    ? `<button type="button" class="task-parent-detail-btn" data-id="${task.id}" title="Детали" aria-label="Детали"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></button>`
+    : '';
+  const subtaskControlsHtml = hasSubtasks
+    ? `<div class="task-parent-controls">${subtaskProgressHtml}${detailBtnHtml}</div>`
+    : '';
   const metaLinesHtml = [
+    subtaskControlsHtml,
     taskTimeAboveTitle ? `<div class="task-row-time">${escapeHtml(taskTimeAboveTitle)}</div>` : '',
     metaTimeBadge,
     taskRowRelatedHtml,
@@ -656,7 +717,7 @@ export function renderTaskItem(task) {
   const hasRowRecording = recordingPlayUrls.length > 0;
 
   return `
-    <div class="task-item ${useCompletedClass ? 'completed' : ''} ${statusRowClasses} ${hasRowRecording ? 'task-has-row-recording' : ''} ${isCrmGroupViewOnly ? 'task-view-only' : ''} ${isNote && task.taskFormed ? 'note-formed' : ''}" data-id="${task.id}" data-group="${escapeHtml(task.group || '')}" data-start="${task.start || ''}" data-end="${task.end || ''}" data-completed="${task.completed ? '1' : '0'}" data-eventstatus="${escapeHtml(task.eventstatus || '')}" data-activitytype="${escapeHtml(task.activitytype || '')}">
+    <div class="task-item ${useCompletedClass ? 'completed' : ''} ${statusRowClasses} ${hasRowRecording ? 'task-has-row-recording' : ''} ${isCrmGroupViewOnly ? 'task-view-only' : ''} ${isNote && task.taskFormed ? 'note-formed' : ''} ${opts.isSubtask ? 'task-item-subtask' : ''} ${hasSubtasks ? 'task-has-subtasks' : ''}" data-id="${task.id}" data-group="${escapeHtml(task.group || '')}" data-start="${task.start || ''}" data-end="${task.end || ''}" data-completed="${task.completed ? '1' : '0'}" data-eventstatus="${escapeHtml(task.eventstatus || '')}" data-activitytype="${escapeHtml(task.activitytype || '')}">
       <div class="task-row">
         <div class="task-row-head">
           ${checkboxHtml}
@@ -714,4 +775,32 @@ export function toggleGroup(groupId) {
     }
     _saveCollapsedGroups();
   }
+}
+
+// --- Сворачивание подзадач под родителем (состояние по parentId, персистится в local) ---
+const COLLAPSED_SUBTASKS_KEY = 'collapsedSubtaskParents';
+let _collapsedSubtaskParents = new Set();
+
+export async function loadCollapsedSubtasks() {
+  try {
+    const r = await chrome.storage.local.get([COLLAPSED_SUBTASKS_KEY]);
+    _collapsedSubtaskParents = new Set(Array.isArray(r[COLLAPSED_SUBTASKS_KEY]) ? r[COLLAPSED_SUBTASKS_KEY].map(String) : []);
+  } catch { _collapsedSubtaskParents = new Set(); }
+  return _collapsedSubtaskParents;
+}
+
+function _saveCollapsedSubtasks() {
+  chrome.storage.local.set({ [COLLAPSED_SUBTASKS_KEY]: [..._collapsedSubtaskParents] });
+}
+
+export function toggleSubtaskCollapse(parentId) {
+  const pid = String(parentId);
+  const container = document.getElementById(`subtasks-${pid}`);
+  const toggle = document.querySelector(`.task-subtask-toggle[data-parent-id="${pid}"]`);
+  const willCollapse = !_collapsedSubtaskParents.has(pid);
+  if (willCollapse) _collapsedSubtaskParents.add(pid);
+  else _collapsedSubtaskParents.delete(pid);
+  if (container) container.classList.toggle('collapsed', willCollapse);
+  if (toggle) toggle.classList.toggle('collapsed', willCollapse);
+  _saveCollapsedSubtasks();
 }

@@ -2076,6 +2076,41 @@ body.dark-theme .task-type-note.note-timer-active {
   animation: note-timer-pulse-dark 2.5s ease-in-out infinite;
 }
 
+/* Локальная задача с запущенным таймером — карточка явно «активна» (акцентный тон + мягкий пульс-glow) */
+.task-item.note-timer-active:not(.task-type-note) {
+  background: var(--accent-muted);
+  border-radius: var(--radius-lg);
+  animation: task-timer-active-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes task-timer-active-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 1px oklch(0.55 0.2 250 / 0.28), 0 2px 10px oklch(0.55 0.2 250 / 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 2px oklch(0.55 0.2 250 / 0.55), 0 4px 18px oklch(0.55 0.2 250 / 0.22);
+  }
+}
+
+body.dark-theme .task-item.note-timer-active:not(.task-type-note) {
+  animation: task-timer-active-pulse-dark 2.4s ease-in-out infinite;
+}
+
+@keyframes task-timer-active-pulse-dark {
+  0%, 100% {
+    box-shadow: 0 0 0 1px oklch(0.65 0.2 200 / 0.4), 0 2px 10px oklch(0.6 0.18 200 / 0.15);
+  }
+  50% {
+    box-shadow: 0 0 0 2px oklch(0.65 0.2 200 / 0.6), 0 4px 18px oklch(0.6 0.18 200 / 0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-item.note-timer-active:not(.task-type-note) {
+    animation: none;
+  }
+}
+
 .note-to-task-btn {
   width: 100%;
   margin-top: 12px;
@@ -3446,8 +3481,40 @@ body.dark-theme .form-crm-in-progress-notice {
   display: flex;
   align-items: center;
   gap: 0;
-  height: 96px;
+  height: auto;
   position: relative;
+}
+
+/* Стрелки ±1 над/под колесом — точный выбор времени, когда скролл неточный */
+.dt-wheel-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dt-wheel-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 0.12s ease-out, color 0.12s ease-out, transform 0.08s ease-out;
+}
+
+.dt-wheel-step:hover {
+  background: var(--secondary);
+  color: var(--accent);
+}
+
+.dt-wheel-step:active {
+  transform: scale(0.85);
 }
 
 .dt-wheel-sep {
@@ -4271,4 +4338,191 @@ body.dark-theme .btn-dock-primary:hover {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
+}
+
+/* ============================================================
+   Подзадачи (локальные задачи): дерево, тоггл, прогресс, добавление
+   ============================================================ */
+
+.task-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Контейнер подзадач — тонкий нейтральный tree-rail 1px (не цветной side-stripe) */
+.task-subtasks {
+  margin: 3px 0 2px 19px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-subtasks.collapsed {
+  display: none;
+}
+
+/* Подзадача чуть компактнее и тише родителя */
+.task-item-subtask .task-text {
+  font-size: 0.92em;
+}
+
+/* Родитель с подзадачами: строка кликается для сворачивания (подсказка курсором) */
+.task-has-subtasks > .task-row .task-row-head {
+  cursor: pointer;
+}
+
+/* 2-й ярус родителя: слева шеврон+прогресс, справа карандаш «детали» (1-й ярус с таймером не трогаем) */
+.task-parent-controls {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Кнопка-карандаш «детали и правка» на родителе (клик по строке сворачивает, детали — здесь) */
+.task-parent-detail-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.task-parent-detail-btn:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* Тоггл на родителе: шеврон (как у групп) + полоска прогресса + счётчик. Клик — свернуть/развернуть. */
+.task-subtask-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 4px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.task-subtask-toggle:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.task-subtask-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease-out;
+}
+
+.task-subtask-toggle.collapsed .task-subtask-chevron {
+  transform: rotate(-90deg);
+}
+
+.task-subtask-progress-bar {
+  position: relative;
+  width: 40px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--muted);
+  overflow: hidden;
+}
+
+.task-subtask-toggle:hover .task-subtask-progress-bar {
+  background: var(--border);
+}
+
+.task-subtask-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  transform: scaleX(0);
+  border-radius: inherit;
+  background: var(--success);
+  /* Анимируем transform, а не width — без layout-thrash (impeccable: layout-transition) */
+  transition: transform 0.25s ease-out;
+}
+
+.task-subtask-progress-label {
+  font-size: 11px;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Тихая ghost-строка «+ Подзадача» — всегда под подзадачами, «растворяется» пока не нужна */
+.task-subtask-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+}
+
+.task-add-subtask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 12.5px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.15s ease-out, color 0.15s ease-out;
+}
+
+.task-add-subtask-btn:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.task-add-subtask-btn svg {
+  opacity: 0.7;
+}
+
+.task-subtask-add-row {
+  flex: 1;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.task-subtask-add-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.task-subtask-add-input:focus {
+  border-color: var(--ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-subtask-chevron,
+  .task-subtask-progress-fill,
+  .task-subtask-toggle,
+  .task-add-subtask-btn {
+    transition: none;
+  }
 }

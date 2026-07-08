@@ -359,14 +359,14 @@ const TIMER_IDLE_THRESHOLD = 30 * 60;         // 30 мин в секундах
 const TIMER_IDLE_AUTOPAUSE_DELAY = 5 * 60000; // 5 мин в мс — ждём ответ на уведомление
 const STORAGE_KEY_PERSONAL = 'personalTasks';
 
-/** Получить все заметки с running таймером (локальные + sync) */
+/** Получить все задачи/заметки с running таймером (локальные + sync) */
 async function getRunningTimerNotes() {
   const running = [];
 
-  // Локальные заметки
+  // Локальные задачи и заметки (любая локальная задача с запущенным таймером)
   const { [STORAGE_KEY_PERSONAL]: personal = [] } = await chrome.storage.sync.get([STORAGE_KEY_PERSONAL]);
   for (const note of personal) {
-    if (note.group === 'Заметки' && note.timerRunning && note.timerStartedAt) {
+    if (note.timerRunning && note.timerStartedAt) {
       running.push({ source: 'local', note });
     }
   }
@@ -461,11 +461,33 @@ function formatDurationHM(seconds) {
   return `${m}мин`;
 }
 
-// --- lastTick: каждую минуту записываем timestamp ---
-chrome.alarms.create(TIMER_TICK_ALARM, { periodInMinutes: 1 });
+/**
+ * Таймерные alarm'ы (tick 1 мин + hourly-напоминание) нужны ТОЛЬКО когда есть
+ * запущенный таймер заметки. Раньше они создавались безусловно и будили
+ * service worker каждую минуту 24/7 (лишний расход батареи + запись в storage
+ * каждую минуту, даже когда ни одного таймера не запущено).
+ */
+async function refreshTimerAlarms() {
+  const running = await getRunningTimerNotes();
+  if (running.length > 0) {
+    chrome.alarms.create(TIMER_TICK_ALARM, { periodInMinutes: 1 });
+    chrome.alarms.create(TIMER_HOURLY_ALARM, { periodInMinutes: 60 });
+  } else {
+    await chrome.alarms.clear(TIMER_TICK_ALARM);
+    await chrome.alarms.clear(TIMER_HOURLY_ALARM);
+    await chrome.alarms.clear('timerIdleAutopause');
+  }
+}
 
-// --- Hourly напоминание ---
-chrome.alarms.create(TIMER_HOURLY_ALARM, { periodInMinutes: 60 });
+// Инициализация при старте service worker
+refreshTimerAlarms();
+
+// Старт/пауза таймера меняет storage → пересчитываем набор alarm'ов
+chrome.storage.onChanged.addListener((changes, area) => {
+  if ((area === 'sync' && changes[STORAGE_KEY_PERSONAL]) || (area === 'local' && changes.syncNotesCache)) {
+    refreshTimerAlarms();
+  }
+});
 
 // Расширяем обработчик alarm
 chrome.alarms.onAlarm.addListener(async (alarm) => {

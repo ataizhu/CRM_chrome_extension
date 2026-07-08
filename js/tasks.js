@@ -3,7 +3,7 @@
 import { authEndpoint, syncPeriod, setLastRenderedTasks, excludeCompleted, excludeCancelled, crmSyncActivityTypes, crmSyncEventStatuses, crmSyncOtherUsers, selectedSyncGroupId, periodExactStart, CRM_GROUP_NAME, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES } from './config.js';
 import { isAuthed } from './auth.js';
 import { apiFetch, fetchTasksFromAPI, fetchSyncNotes } from './api.js';
-import { loadPersonalTasks, savePersonalTasks, savePersonalTask, updatePersonalTask, loadDeletedCrmTasks, saveDeletedCrmTasks, markCrmTaskAsDeleted, estimateStorageSize, loadCrmTasksCache, saveCrmTasksCache, updateCrmTaskInCache, removeCrmTaskFromCache } from './storage.js';
+import { loadPersonalTasks, savePersonalTasks, savePersonalTask, updatePersonalTask, setPersonalTaskCompletedCascade, loadDeletedCrmTasks, saveDeletedCrmTasks, markCrmTaskAsDeleted, estimateStorageSize, loadCrmTasksCache, saveCrmTasksCache, updateCrmTaskInCache, removeCrmTaskFromCache } from './storage.js';
 import { isCrmGroup, isNotesGroup } from './groups.js';
 import { showError, hideError, showLoading, hideLoading } from './utils.js';
 
@@ -99,6 +99,8 @@ export function startSyncNotesPolling(dependencies = {}) {
   stopSyncNotesPolling();
   _syncNotesPollingId = setInterval(async () => {
     if (!isAuthed()) return;
+    // Панель скрыта (свёрнута/другая вкладка) — не дёргаем сеть каждые 15 сек впустую
+    if (typeof document !== 'undefined' && document.hidden) return;
     try {
       const fresh = await fetchSyncNotes(null, dependencies);
       const prev = _cachedSyncNotes;
@@ -292,7 +294,6 @@ export async function createTask(text, group = null, start = null, end = null, d
   }
 
   if (!useApi) {
-    const isNote = isNotesGroup(group);
     const task = {
       id: Date.now().toString(),
       text,
@@ -302,7 +303,12 @@ export async function createTask(text, group = null, start = null, end = null, d
       end: end ? end.toISOString() : null,
       description: desc || null,
       createdAt: new Date().toISOString(),
-      ...(isNote && { timerElapsedSeconds: 0, timerRunning: false, timerStartedAt: null }),
+      // Подзадача: id родительской задачи (один уровень вложенности). null — задача верхнего уровня.
+      parentId: dependencies.parentId != null && dependencies.parentId !== '' ? String(dependencies.parentId) : null,
+      // Таймер работы: у всех локальных задач (личные + локальные заметки) — стартовые нули.
+      timerElapsedSeconds: 0,
+      timerRunning: false,
+      timerStartedAt: null,
     };
     await savePersonalTask(task);
     return task;
@@ -449,10 +455,9 @@ export async function updateTask(id, text, group = null, start = null, end = nul
 
 export async function deleteTask(id, dependencies = {}) {
   const { loadMergedTasks: loadMerged, markCrmTaskAsDeleted: markDeleted, deletePersonalTask, loadTasks: loadTasksFn, renderTasks } = dependencies;
-  if (!confirm('Удалить задачу?')) return;
 
   try {
-    const merged = await (loadMerged || loadMergedTasks)(dependencies);
+    const merged = await (loadMerged || loadMergedTasks)(dependencies, { useCacheOnly: true });
     const task = merged.find(t => t.id == id);
 
     if (!task) {
@@ -460,7 +465,9 @@ export async function deleteTask(id, dependencies = {}) {
       return;
     }
 
-    // console.log('Удаление задачи:', { id, taskId: task.id, group: task.group, isCrm: isCrmGroup(task.group) });
+    // Подтверждение с учётом подзадач (удаление родителя каскадно уносит подзадачи)
+    const childCount = merged.filter((t) => t.parentId != null && String(t.parentId) === String(task.id)).length;
+    if (!confirm(childCount > 0 ? `Удалить задачу и её подзадачи (${childCount})?` : 'Удалить задачу?')) return;
 
     if (task && isCrmGroup(task.group)) {
       const taskId = task.id.toString().replace(/^crm_/, '');
@@ -555,7 +562,7 @@ export async function deleteTask(id, dependencies = {}) {
 export async function toggleTaskComplete(id, dependencies = {}) {
   const { loadMergedTasks: loadMerged, apiFetch: apiFetchFn, authEndpoint: authEndpointVal, isAuthed: isAuthedFn, updatePersonalTask: updatePersonal, loadTasks: loadTasksFn } = dependencies;
   try {
-    const merged = await (loadMerged || loadMergedTasks)(dependencies);
+    const merged = await (loadMerged || loadMergedTasks)(dependencies, { useCacheOnly: true });
     const task = merged.find(t => t.id == id);
     if (!task) return;
 
@@ -579,7 +586,8 @@ export async function toggleTaskComplete(id, dependencies = {}) {
       return;
     }
 
-    await (updatePersonal || updatePersonalTask)(task);
+    // Локальная задача: каскад на подзадачи / авто-статус родителя (по свежему personalTasks)
+    await setPersonalTaskCompletedCascade(task.id, task.completed);
     if (loadTasksFn) await loadTasksFn(dependencies, { useCacheOnly: true });
   } catch (err) {
     showError(err.message || 'Ошибка при обновлении задачи');
@@ -627,6 +635,8 @@ export async function setTaskStatus(id, eventstatus, dependencies = {}) {
 
 export async function deletePersonalTask(id) {
   const tasks = await loadPersonalTasks();
-  const filtered = tasks.filter(t => t.id !== id);
+  const idStr = String(id);
+  // Удаляем саму задачу И её подзадачи (каскад по parentId)
+  const filtered = tasks.filter((t) => String(t.id) !== idStr && String(t.parentId ?? '') !== idStr);
   await savePersonalTasks(filtered);
 }

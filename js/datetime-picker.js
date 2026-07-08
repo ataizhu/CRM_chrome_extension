@@ -104,6 +104,7 @@ function dtInitWheel(wheel, max, blockEl) {
       const snapped = Math.round(wheel.scrollTop / itemH);
       wheel.scrollTo({ top: snapped * itemH, behavior: 'smooth' });
       dtSyncWheelToInput(blockEl);
+      wheel._targetVal = null;
     }, 80);
   }, { passive: true });
 
@@ -112,8 +113,38 @@ function dtInitWheel(wheel, max, blockEl) {
     const item = e.target.closest('.dt-wheel-item');
     if (!item) return;
     const val = parseInt(item.dataset.value);
+    wheel._targetVal = val;
     wheel.scrollTo({ top: val * 32, behavior: 'smooth' });
   });
+
+  // Стрелки ±1 над и под колесом — точный шаг для неточного скролла (перешагивает числа)
+  if (!wheel.dataset.stepsInit && wheel.parentNode) {
+    wheel.dataset.stepsInit = '1';
+    const col = document.createElement('div');
+    col.className = 'dt-wheel-col';
+    wheel.parentNode.insertBefore(col, wheel);
+    const mkStep = (label, points) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'dt-wheel-step';
+      b.setAttribute('aria-label', label);
+      b.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="${points}"/></svg>`;
+      return b;
+    };
+    const up = mkStep('Больше', '18 15 12 9 6 15');
+    const down = mkStep('Меньше', '6 9 12 15 18 9');
+    col.appendChild(up);
+    col.appendChild(wheel);
+    col.appendChild(down);
+    const step = (delta) => {
+      const base = wheel._targetVal != null ? wheel._targetVal : dtGetWheelValue(wheel);
+      const next = Math.min(max, Math.max(0, base + delta));
+      wheel._targetVal = next;
+      wheel.scrollTo({ top: next * 32, behavior: 'smooth' });
+    };
+    up.addEventListener('click', (e) => { e.stopPropagation(); step(1); });
+    down.addEventListener('click', (e) => { e.stopPropagation(); step(-1); });
+  }
 }
 
 /** Initialize all wheels in a time row */
@@ -328,6 +359,10 @@ function setupRangePicker() {
   });
 
   function openFromHidden() {
+    // Дефолт при пустых значениях (создание): выбираем СЕГОДНЯ реально (а не только визуально),
+    // время — текущее. Иначе, если пользователь только вводил время, дата не записывалась.
+    const nowDt = new Date();
+    const todayDate = new Date(nowDt.getFullYear(), nowDt.getMonth(), nowDt.getDate());
     if (hiddenStart.value) {
       const d = new Date(hiddenStart.value);
       startDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -335,8 +370,10 @@ function setupRangePicker() {
       viewMonth = startDate.getMonth();
       dtSetTimeToBlock(startRow, d.getHours(), d.getMinutes());
     } else {
-      startDate = null;
-      dtSetTimeToBlock(startRow, 0, 0);
+      startDate = new Date(todayDate);
+      viewYear = startDate.getFullYear();
+      viewMonth = startDate.getMonth();
+      dtSetTimeToBlock(startRow, nowDt.getHours(), nowDt.getMinutes());
     }
     if (hiddenEnd.value) {
       const d = new Date(hiddenEnd.value);
@@ -345,8 +382,10 @@ function setupRangePicker() {
       viewMonth = endDate.getMonth();
       dtSetTimeToBlock(endRow, d.getHours(), d.getMinutes());
     } else {
-      endDate = null;
-      dtSetTimeToBlock(endRow, 0, 0);
+      endDate = new Date(todayDate);
+      viewYear = endDate.getFullYear();
+      viewMonth = endDate.getMonth();
+      dtSetTimeToBlock(endRow, nowDt.getHours(), nowDt.getMinutes());
     }
     hoverDate = null;
     renderCalendar();

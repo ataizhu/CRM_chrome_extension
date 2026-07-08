@@ -6,7 +6,7 @@ import { isAuthed, clearAuth, login, showLoginError } from './auth.js';
 import { loadGroups, saveGroups, renderGroupDropdownList, updateGroupTriggerLabel, renderFormGroupDropdownList, updateFormGroupTriggerLabel, setFormGroupSelection as setFormGroup, updateFormMode, setupGroupDropdown, setupFormGroupDropdown, isCrmForm, isNotesForm, deleteGroup, renameGroup, restoreGroup, renderGroupsManagementList, reorderGroups } from './groups.js';
 import { loadTasks, loadMergedTasks, createTask, updateTask, deleteTask, toggleTaskComplete, completeCrmTaskWithDescription, setTaskStatus, invalidateSyncNotesCache, startSyncNotesPolling, stopSyncNotesPolling, periodToDateFrom } from './tasks.js';
 import { loadPersonalTasks, savePersonalTasks, loadDeletedCrmTasks, saveDeletedCrmTasks, markCrmTaskAsDeleted, removeCrmTaskFromCache, updateNoteTimer, saveSelectedSyncGroupId } from './storage.js';
-import { renderTasks, refreshTaskTimeBadges, refreshNoteTimerDisplays, toggleGroup, formatDuration, formatTimerSegmentsForTaskResult } from './render.js';
+import { renderTasks, refreshTaskTimeBadges, refreshNoteTimerDisplays, toggleGroup, toggleSubtaskCollapse, formatDuration, formatTimerSegmentsForTaskResult } from './render.js';
 import { openTaskFormModal, closeTaskFormModal, showSegmentChoiceModal, showSegmentEditorModal } from './modals.js';
 import { getDateTimePickerValue, setDateTimePickerValue, resetDateTimePickers, initDateTimePickers } from './datetime-picker.js';
 import { renderStats, switchTab } from './stats.js';
@@ -1915,6 +1915,23 @@ function setupDetailRecordingPlayers() {
   tasksContainer.querySelectorAll('.task-detail-recording-block').forEach(bindDetailRecordingPlayer);
 }
 
+/** Создать подзадачу из инлайн-поля: parentId из data-parent-id, группа наследуется от родителя. */
+async function createSubtaskFromInput(input, dependencies = {}) {
+  const parentId = input.dataset.parentId;
+  const text = input.value.trim();
+  if (!parentId || !text) return;
+  const parent = _lastRenderedTasks?.find((t) => String(t.id) === String(parentId));
+  const group = (parent && parent.group) || 'Личные';
+  input.value = '';
+  const createFn = dependencies.createTask || createTask;
+  try {
+    await createFn(text, group, null, null, null, { ...dependencies, parentId });
+    if (dependencies.loadTasks) await dependencies.loadTasks(dependencies, { useCacheOnly: true });
+  } catch (err) {
+    showError(err.message || 'Не удалось добавить подзадачу');
+  }
+}
+
 export function setupTasksDelegation(dependencies = {}) {
   tasksContainer.addEventListener('tasksRendered', setupDetailRecordingPlayers);
 
@@ -1977,7 +1994,44 @@ export function setupTasksDelegation(dependencies = {}) {
     }
   });
 
+  // Enter в инлайн-поле подзадачи — создать
+  tasksContainer.addEventListener('keydown', async (e) => {
+    const input = e.target.closest('.task-subtask-add-input');
+    if (input && e.key === 'Enter') {
+      e.preventDefault();
+      await createSubtaskFromInput(input, dependencies);
+    }
+  });
+
   tasksContainer.addEventListener('click', async (e) => {
+    // Подзадачи: раскрыть инлайн-поле добавления
+    const addSubtaskBtn = e.target.closest('.task-add-subtask-btn');
+    if (addSubtaskBtn) {
+      e.stopPropagation();
+      const wrap = addSubtaskBtn.closest('.task-subtask-add');
+      const row = wrap?.querySelector('.task-subtask-add-row');
+      if (row) {
+        addSubtaskBtn.style.display = 'none';
+        row.style.display = 'flex';
+        row.querySelector('.task-subtask-add-input')?.focus();
+      }
+      return;
+    }
+    // Подзадачи: подтвердить создание
+    const subtaskConfirmBtn = e.target.closest('.task-subtask-add-confirm');
+    if (subtaskConfirmBtn) {
+      e.stopPropagation();
+      const input = subtaskConfirmBtn.closest('.task-subtask-add-row')?.querySelector('.task-subtask-add-input');
+      if (input) await createSubtaskFromInput(input, dependencies);
+      return;
+    }
+    // Подзадачи: свернуть/развернуть под родителем (клик по шеврону-прогрессу)
+    const subtaskToggleBtn = e.target.closest('.task-subtask-toggle');
+    if (subtaskToggleBtn) {
+      e.stopPropagation();
+      toggleSubtaskCollapse(subtaskToggleBtn.dataset.parentId);
+      return;
+    }
     const brainBtn = e.target.closest('.task-brain-btn');
     if (brainBtn) {
       e.stopPropagation();
@@ -2043,10 +2097,14 @@ export function setupTasksDelegation(dependencies = {}) {
     if (noteTimerBtn) {
       e.stopPropagation();
       const id = noteTimerBtn.dataset.id;
-      // Таймер доступен только тому, кто взял заметку себе
       const timerTask = _lastRenderedTasks?.find(t => String(t.id) === String(id));
-      const myUid = window._currentVtigerUserId || '';
-      if (!timerTask?.assignedTo || !myUid || String(timerTask.assignedTo) !== String(myUid)) return;
+      if (!timerTask) return;
+      // Локальная (личная) задача — таймер доступен всегда. Заметка — только тому, кто взял её себе.
+      const isLocalTask = timerTask.group !== 'Заметки';
+      if (!isLocalTask) {
+        const myUid = window._currentVtigerUserId || '';
+        if (!timerTask.assignedTo || !myUid || String(timerTask.assignedTo) !== String(myUid)) return;
+      }
       const badge = noteTimerBtn.closest('.note-timer-badge');
       const wasRunning = badge?.dataset.running === 'true';
       const elapsed = parseInt(badge?.dataset.elapsed || '0', 10);
@@ -2055,8 +2113,18 @@ export function setupTasksDelegation(dependencies = {}) {
       const sessionSeconds = wasRunning ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000) : 0;
       let newElapsed = wasRunning ? elapsed + sessionSeconds : elapsed;
       const isStarting = !wasRunning;
-      // Обновляем timerSegments
-      const task = _lastRenderedTasks?.find(t => String(t.id) === String(id));
+
+      // Локальная задача: без истории сегментов и без API — храним прямо в personalTasks (sync).
+      // (Сегменты нужны только Заметкам для «сформировать задачу из отрезков» — личным не нужны.)
+      if (isLocalTask) {
+        if (!isStarting && sessionSeconds < 60) newElapsed = elapsed; // короткую сессию не засчитываем
+        await updateNoteTimer(id, !wasRunning, newElapsed, isStarting ? now : null);
+        if (dependencies.loadTasks) await dependencies.loadTasks(dependencies, { useCacheOnly: true });
+        return;
+      }
+
+      // Заметка: с историей сегментов
+      const task = timerTask;
       const segments = Array.isArray(task?.timerSegments) ? [...task.timerSegments] : [];
       if (isStarting) {
         segments.push({ start: now, end: null });
@@ -2270,10 +2338,24 @@ export function setupTasksDelegation(dependencies = {}) {
       }
       return;
     }
+    // Детали родителя с подзадачами — по карандашу (клик по самой строке у него сворачивает)
+    const parentDetailBtn = e.target.closest('.task-parent-detail-btn');
+    if (parentDetailBtn) {
+      e.stopPropagation();
+      parentDetailBtn.closest('.task-item')?.classList.toggle('expanded');
+      return;
+    }
     const row = e.target.closest('.task-row');
     if (row && !e.target.closest('.task-checkbox') && !e.target.closest('.task-brain-btn')) {
       const item = row.closest('.task-item');
-      if (item) item.classList.toggle('expanded');
+      if (item) {
+        // Родитель с подзадачами: клик по строке сворачивает/разворачивает подзадачи; детали — по карандашу.
+        if (item.classList.contains('task-has-subtasks')) {
+          toggleSubtaskCollapse(item.dataset.id);
+        } else {
+          item.classList.toggle('expanded');
+        }
+      }
       return;
     }
     const moduleBadge = e.target.closest('.group-module-badge');

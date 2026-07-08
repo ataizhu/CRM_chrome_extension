@@ -83,10 +83,40 @@ export async function updatePersonalTask(updatedTask) {
   }
 }
 
-/** Обновить таймер заметки: старт/пауза */
+/**
+ * Отметить локальную задачу выполненной/невыполненной с каскадом:
+ *  - родитель → все подзадачи получают тот же статус;
+ *  - подзадача → обновляем её, затем родитель = выполнен, если выполнены ВСЕ подзадачи.
+ * Работает по свежему снимку personalTasks (не по общему merged-списку).
+ */
+export async function setPersonalTaskCompletedCascade(taskId, completed) {
+  const tasks = await loadPersonalTasks();
+  const idStr = String(taskId);
+  const task = tasks.find((t) => String(t.id) === idStr);
+  if (!task) return;
+  const children = tasks.filter((t) => t.parentId != null && String(t.parentId) === idStr);
+  if (children.length > 0) {
+    // Родитель: каскад вниз на подзадачи
+    task.completed = completed;
+    for (const c of children) c.completed = completed;
+  } else if (task.parentId != null) {
+    // Подзадача: обновляем себя, затем пересчитываем родителя
+    task.completed = completed;
+    const parent = tasks.find((t) => String(t.id) === String(task.parentId));
+    if (parent) {
+      const sibs = tasks.filter((t) => t.parentId != null && String(t.parentId) === String(parent.id));
+      parent.completed = sibs.length > 0 && sibs.every((s) => s.completed);
+    }
+  } else {
+    task.completed = completed;
+  }
+  await savePersonalTasks(tasks);
+}
+
+/** Обновить таймер локальной задачи/заметки: старт/пауза (ищем по id в personalTasks). */
 export async function updateNoteTimer(noteId, running, elapsedSeconds, startedAt, timerSegments) {
   const tasks = await loadPersonalTasks();
-  const task = tasks.find(t => t.id == noteId && t.group === 'Заметки');
+  const task = tasks.find(t => t.id == noteId);
   if (!task) return;
   task.timerElapsedSeconds = elapsedSeconds ?? task.timerElapsedSeconds ?? 0;
   task.timerRunning = !!running;

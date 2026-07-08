@@ -186,6 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   Config.applyTheme(Config.theme);
   await Auth.checkAuth();
   await Render.loadCollapsedGroups();
+  await Render.loadCollapsedSubtasks();
   await Groups.loadGroups(deps);
   UI.setupEventListeners(deps);
   applyAutoLoad(deps);
