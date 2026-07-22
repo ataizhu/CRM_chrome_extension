@@ -76,12 +76,18 @@ rm -rf "$TMP_STORE"
 echo "Chrome Web Store:   $(pwd)/$OUT_STORE"
 
 # --- Сборка Firefox ---
+# AMO требует manifest.json в КОРНЕ zip (как и Chrome Web Store), без внешней папки crm/.
+# Поэтому распаковываем chrome-архив (в нём уже применены исключения), подменяем манифест на
+# Firefox-вариант (с browser_specific_settings.gecko.id и sidebar_action) и переупаковываем
+# содержимое crm/ в корень архива.
 OUT_FIREFOX="crm-extension-v${VNEW}-firefox.zip"
-# Копируем Firefox-манифест поверх основного, собираем, возвращаем обратно
-cp "$MANIFEST" "$MANIFEST.bak"
-cp "$FIREFOX_MANIFEST" "$MANIFEST"
-zip -r "$OUT_FIREFOX" crm "${EXCLUDE_ARGS[@]}"
-mv "$MANIFEST.bak" "$MANIFEST"
+OUT_FIREFOX_ABS="$(pwd)/$OUT_FIREFOX"
+rm -f "$OUT_FIREFOX_ABS"
+TMP_FF="$(mktemp -d)"
+unzip -q "$OUT_CHROME" -d "$TMP_FF"
+cp "$FIREFOX_MANIFEST" "$TMP_FF/crm/manifest.json"
+( cd "$TMP_FF/crm" && zip -rqX "$OUT_FIREFOX_ABS" . )
+rm -rf "$TMP_FF"
 echo "Firefox:            $(pwd)/$OUT_FIREFOX"
 
 echo ""
