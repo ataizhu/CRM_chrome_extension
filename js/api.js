@@ -1,6 +1,6 @@
 // api.js - API запросы
 
-import { authEndpoint, authToken, vtigerCredentials, setAuthToken, setUser, setVtigerCredentials, periodExactStart } from './config.js';
+import { authEndpoint, authToken, vtigerCredentials, setAuthToken, setUser, setVtigerCredentials, periodExactStart, showFutureTasks, futurePeriod } from './config.js';
 import { clearAuth } from './auth.js';
 
 const _MS_DAY = 24 * 60 * 60 * 1000;
@@ -30,6 +30,20 @@ function _calcDateFrom(period) {
     return new Date(today.getTime() - 365 * _MS_DAY).toISOString().slice(0, 10);
   }
   return null;
+}
+
+/** Верхняя граница выборки: сегодня, либо сегодня+горизонт при включённых будущих задачах. */
+function _calcDateTo() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!showFutureTasks) return today.toISOString().slice(0, 10);
+  const d = new Date(today);
+  if (futurePeriod === 'week') d.setDate(d.getDate() + 7);
+  else if (futurePeriod === '3months') d.setMonth(d.getMonth() + 3);
+  else if (futurePeriod === '6months') d.setMonth(d.getMonth() + 6);
+  else if (futurePeriod === 'year') d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1); // month — по умолчанию
+  return d.toISOString().slice(0, 10);
 }
 
 export async function apiFetch(url, init = {}, dependencies = {}) {
@@ -95,6 +109,9 @@ export async function fetchTasksFromAPI(period = 'month', dependencies = {}) {
   }
   // Сворачиваем повторяющиеся будущие задачи — только ближайшая
   url += '&collapse_recurring=1';
+  // Верхняя граница периода (строгий период / будущие задачи)
+  const dateTo = _calcDateTo();
+  if (dateTo) url += `&date_to=${encodeURIComponent(dateTo)}`;
   if (assignedUserId != null && assignedUserId !== '') {
     url += '&assigned_user_id=' + encodeURIComponent(String(assignedUserId));
   }

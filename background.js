@@ -190,9 +190,23 @@ function bgPeriodToDateFrom(period, exact = {}) {
   return null;
 }
 
+/** Верхняя граница выборки для фона: сегодня, либо сегодня+горизонт при включённых будущих задачах. */
+function bgCalcDateTo(showFuture, futurePeriod) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (!showFuture) return today.toISOString().slice(0, 10);
+  const d = new Date(today);
+  if (futurePeriod === 'week') d.setDate(d.getDate() + 7);
+  else if (futurePeriod === '3months') d.setMonth(d.getMonth() + 3);
+  else if (futurePeriod === '6months') d.setMonth(d.getMonth() + 6);
+  else if (futurePeriod === 'year') d.setFullYear(d.getFullYear() + 1);
+  else d.setMonth(d.getMonth() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 /** Загрузить задачи из API */
 async function bgFetchTasks() {
-  const { syncPeriod, periodExactStart } = await chrome.storage.sync.get(['syncPeriod', 'periodExactStart']);
+  const { syncPeriod, periodExactStart, showFutureTasks, futurePeriod } = await chrome.storage.sync.get(['syncPeriod', 'periodExactStart', 'showFutureTasks', 'futurePeriod']);
   const period = syncPeriod || 'month';
   const exact = periodExactStart && typeof periodExactStart === 'object' ? periodExactStart : {};
   let url = `${API_ENDPOINT}?action=tasks&period=${encodeURIComponent(period)}`;
@@ -201,6 +215,8 @@ async function bgFetchTasks() {
     url += `&date_from=${encodeURIComponent(dateFrom)}`;
   }
   url += '&collapse_recurring=1';
+  const dateTo = bgCalcDateTo(showFutureTasks === true, futurePeriod || 'month');
+  if (dateTo) url += `&date_to=${encodeURIComponent(dateTo)}`;
   const res = await bgApiFetch(url);
   if (!res) return null;
   try {

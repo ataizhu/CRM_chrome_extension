@@ -34,6 +34,15 @@ export let excludeCancelled = false;
  *  week=true → с понедельника, month=true → с 1-го числа, 3months → с 1-го числа 3 мес назад, year → с 1 января */
 export let periodExactStart = {};
 
+/** Показывать будущие задачи (в дополнение к прошлому периоду — до сегодня+futurePeriod). */
+export let showFutureTasks = false;
+export function setShowFutureTasks(value) { showFutureTasks = !!value; }
+/** Горизонт будущих задач: 'week' | 'month' | '3months' | '6months' | 'year'. */
+export let futurePeriod = 'month';
+export function setFuturePeriod(value) {
+  futurePeriod = ['week', 'month', '3months', '6months', 'year'].includes(value) ? value : 'month';
+}
+
 /** Выбранная группа синхронизации для Заметок (uuid из Supabase). Если задана — заметки грузятся/сохраняются в группе. */
 export let selectedSyncGroupId = '';
 

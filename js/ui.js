@@ -1,6 +1,6 @@
 // ui.js - UI компоненты и события
 
-import { theme, syncPeriod, groups, selectedGroup, _lastRenderedTasks, setSyncPeriod, setTimeRefreshInterval, setFormGroupSelection, user, authMode, setTheme, applyTheme, taskSortOrder, setTaskSortOrder, setCrmSyncActivityTypes, setCrmSyncEventStatuses, crmSyncSourceGroupId, crmSyncOtherUsers, setCrmSyncSourceGroupId, setCrmSyncOtherUsers, periodExactStart, setPeriodExactStart, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES, CRM_GROUP_NAME } from './config.js';
+import { theme, syncPeriod, groups, selectedGroup, _lastRenderedTasks, setSyncPeriod, setTimeRefreshInterval, setFormGroupSelection, user, authMode, setTheme, applyTheme, taskSortOrder, setTaskSortOrder, setCrmSyncActivityTypes, setCrmSyncEventStatuses, crmSyncSourceGroupId, crmSyncOtherUsers, setCrmSyncSourceGroupId, setCrmSyncOtherUsers, periodExactStart, setPeriodExactStart, showFutureTasks, futurePeriod, setShowFutureTasks, setFuturePeriod, CRM_SYNC_ACTIVITY_VALUES, CRM_SYNC_STATUS_VALUES, CRM_GROUP_NAME } from './config.js';
 import { _formEl, showError, hideError, showLoading, hideLoading, tasksContainer, escapeHtml, error as errorEl, openPickerModal, openPeriodPickerModal } from './utils.js';
 import { isAuthed, clearAuth, login, showLoginError } from './auth.js';
 import { loadGroups, saveGroups, renderGroupDropdownList, updateGroupTriggerLabel, renderFormGroupDropdownList, updateFormGroupTriggerLabel, setFormGroupSelection as setFormGroup, updateFormMode, setupGroupDropdown, setupFormGroupDropdown, isCrmForm, isNotesForm, deleteGroup, renameGroup, restoreGroup, renderGroupsManagementList, reorderGroups } from './groups.js';
@@ -855,6 +855,8 @@ export function setupSettingsTab(dependencies = {}) {
         const result = await openPeriodPickerModal({
           selectedValue: syncPeriodDropdown2.dataset.value || syncPeriod || 'month',
           exactStart: periodExactStart,
+          showFuture: showFutureTasks,
+          futurePeriod: futurePeriod,
         });
         if (result) {
           syncPeriodDropdown2.dataset.value = result.value;
@@ -862,7 +864,16 @@ export function setupSettingsTab(dependencies = {}) {
           if (label) label.textContent = result.label;
           setSyncPeriod(result.value);
           setPeriodExactStart(result.exactStart);
-          await chrome.storage.sync.set({ syncPeriod: result.value, periodExactStart: result.exactStart });
+          setShowFutureTasks(result.showFuture);
+          if (result.futurePeriod) setFuturePeriod(result.futurePeriod);
+          await chrome.storage.sync.set({
+            syncPeriod: result.value,
+            periodExactStart: result.exactStart,
+            showFutureTasks: !!result.showFuture,
+            futurePeriod: result.futurePeriod || 'month',
+          });
+          // Перезагружаем список под новый период (иначе оставался бы набор от прошлого периода)
+          if (dependencies.loadTasks) await dependencies.loadTasks(dependencies);
         }
       });
     }

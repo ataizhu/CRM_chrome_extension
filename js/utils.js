@@ -130,7 +130,9 @@ export function openPickerModal(opts) {
  */
 export function openPeriodPickerModal(opts) {
   return new Promise((resolve) => {
-    const { selectedValue, exactStart = {}, parent } = opts;
+    const { selectedValue, exactStart = {}, parent, showFuture = false, futurePeriod = 'month' } = opts;
+    let futureOn = !!showFuture;
+    let futureVal = futurePeriod;
 
     const periods = [
       { value: 'today', label: 'Сегодня' },
@@ -200,7 +202,7 @@ export function openPeriodPickerModal(opts) {
             delete newExactStart[p.value];
           }
           // Клик по галочке — сразу выбираем этот период и закрываем
-          close({ value: p.value, label: p.label, exactStart: { ...newExactStart } });
+          close({ value: p.value, label: p.label, exactStart: { ...newExactStart }, showFuture: futureOn, futurePeriod: futureVal });
         });
 
         const cbLabel = document.createElement('span');
@@ -232,7 +234,57 @@ export function openPeriodPickerModal(opts) {
       if (e.target.closest('.period-picker-exact')) return;
       const label = opt.querySelector('.period-picker-label').textContent;
       // Клик по названию — выбираем период без exactStart (сбрасываем галочку)
-      close({ value: opt.dataset.value, label, exactStart: {} });
+      close({ value: opt.dataset.value, label, exactStart: {}, showFuture: futureOn, futurePeriod: futureVal });
+    });
+
+    // ── Будущие задачи: галочка + горизонт (внизу модалки) ──
+    const futureWrap = document.createElement('div');
+    futureWrap.className = 'period-picker-future';
+    const futureToggle = document.createElement('label');
+    futureToggle.className = 'period-future-toggle';
+    const futureCb = document.createElement('input');
+    futureCb.type = 'checkbox';
+    futureCb.className = 'period-future-cb';
+    futureCb.checked = futureOn;
+    const futureText = document.createElement('span');
+    futureText.textContent = 'Показывать будущие задачи';
+    futureToggle.appendChild(futureCb);
+    futureToggle.appendChild(futureText);
+    futureWrap.appendChild(futureToggle);
+
+    const futureSelect = document.createElement('select');
+    futureSelect.className = 'period-future-select';
+    [
+      { value: 'week', label: 'на неделю вперёд' },
+      { value: 'month', label: 'на месяц вперёд' },
+      { value: '3months', label: 'на 3 месяца вперёд' },
+      { value: '6months', label: 'на 6 месяцев вперёд' },
+      { value: 'year', label: 'на год вперёд' },
+    ].forEach((o) => {
+      const opt = document.createElement('option');
+      opt.value = o.value;
+      opt.textContent = o.label;
+      if (o.value === futureVal) opt.selected = true;
+      futureSelect.appendChild(opt);
+    });
+    futureSelect.style.display = futureOn ? '' : 'none';
+    futureWrap.appendChild(futureSelect);
+    modal.appendChild(futureWrap);
+
+    const currentPeriodResult = () => {
+      const cur = periods.find((p) => p.value === selectedValue) || { label: '' };
+      return { value: selectedValue, label: cur.label, exactStart: { ...newExactStart } };
+    };
+    futureCb.addEventListener('change', () => {
+      futureOn = futureCb.checked;
+      futureSelect.style.display = futureOn ? '' : 'none';
+      // Выключили — сразу применяем (будущее скрыто). Включили — ждём выбор горизонта (или тап по периоду).
+      if (!futureOn) close({ ...currentPeriodResult(), showFuture: false, futurePeriod: futureVal });
+    });
+    futureSelect.addEventListener('change', () => {
+      futureVal = futureSelect.value;
+      futureOn = true;
+      close({ ...currentPeriodResult(), showFuture: true, futurePeriod: futureVal });
     });
   });
 }

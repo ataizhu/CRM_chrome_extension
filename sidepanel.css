@@ -4249,6 +4249,47 @@ body.dark-theme .btn-dock-primary:hover {
   white-space: nowrap;
 }
 
+/* Будущие задачи: галочка + горизонт внизу модалки периода */
+.period-picker-future {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.period-future-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--foreground);
+}
+
+.period-future-cb {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.period-future-select {
+  padding: 8px 10px;
+  font-size: 14px;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: pointer;
+}
+
+.period-future-select:focus {
+  border-color: var(--ring);
+}
+
 /* Responsible — fullscreen variant for long lists */
 .picker-modal.picker-modal-fullscreen {
   width: 100%;
